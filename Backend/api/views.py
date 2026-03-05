@@ -145,6 +145,9 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
                 holding.average_price = (old_value + new_value) / holding.total_quantity
                 holding.save()
                 user.save()
+                
+                # Evaluate student behavior after BUY trade
+                evaluate_student_behavior(user.id)
 
             elif transaction_type == 'SELL':
                 holding = Holding.objects.get(user=user, symbol=symbol)
@@ -177,7 +180,8 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
                     trade.loss_amount = abs(realized_pl)
                     trade.save()
 
-                    evaluate_student_behavior(user.id)
+                # Evaluate student behavior after SELL trade (regardless of profit/loss)
+                evaluate_student_behavior(user.id)
 
         serializer = self.get_serializer(trade)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -322,15 +326,37 @@ class MentorLinkViewSet(viewsets.ModelViewSet):
         else:
             return MentorLink.objects.filter(student=user)
 
-    def perform_create(self, serializer):
-        student = self.request.user
+    # --- REPLACE YOUR EXISTING perform_create WITH THESE TWO METHODS ---
+    def create(self, request, *args, **kwargs):
+        student = request.user
+        mentor_id = request.data.get('mentor')
 
-        # 1. Block the student if they already have ANY active or pending request
+        # 1. Block if the student already has an active or pending request with ANY mentor
         if MentorLink.objects.filter(student=student, status__in=['PENDING', 'ACCEPTED']).exists():
-            raise ValidationError({'error': 'You already have a pending or active mentor connection.'})
+            return Response({'error': 'You already have a pending or active mentor connection.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 2. If they don't have any existing requests, proceed normally
-        serializer.save(student=student, status='PENDING', is_active=False)
+        try:
+            mentor = User.objects.get(id=mentor_id, role='MENTOR')
+        except User.DoesNotExist:
+            return Response({'error': 'Mentor not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # 2. Check if a link already exists specifically between this student and this mentor
+        link = MentorLink.objects.filter(student=student, mentor=mentor).first()
+
+        if link:
+            if link.status == 'REJECTED':
+                # --- THE FIX: Reactivate the rejected request! ---
+                link.status = 'PENDING'
+                link.save()
+                # We return 201 CREATED so Flutter treats it like a brand new successful request
+                return Response({'message': 'Request sent again!'}, status=status.HTTP_201_CREATED)
+        
+        # 3. If no link exists at all, let Django handle creating a brand new row
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        # This is called by super().create() to attach the student and default status
+        serializer.save(student=self.request.user, status='PENDING', is_active=False)
 
     # Custom Action for Mentors to "Accept" or "Reject"
     @action(detail=True, methods=['post'])
@@ -370,6 +396,7 @@ def get_user_profile(request):
         'role': user.role,
         'discipline_score': user.discipline_score,
         'wallet_balance': str(user.wallet_balance),
+        'risk_profile': user.risk_profile,
     })
 
 @api_view(['GET'])

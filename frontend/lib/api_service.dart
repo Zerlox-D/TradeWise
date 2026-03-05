@@ -12,7 +12,7 @@ class ApiService {
 
   static Future<bool> login(String username, String password) async {
     final url = Uri.parse("${AppConstants.rootUrl}/api-token-auth/");
-    
+  
     try {
       // We use standard http.post here so we don't attach old tokens
       final response = await http.post(

@@ -140,10 +140,15 @@ class _TradeScreenState extends State<TradeScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context); // Close dialog
-                Navigator.pop(
-                  context,
-                  true,
-                ); // Go back to dashboard & tell it to refresh
+                // Use Future.delayed to ensure the dialog closes before popping the trade screen
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (mounted) {
+                    Navigator.pop(
+                      context,
+                      true,
+                    ); // Go back to dashboard & tell it to refresh
+                  }
+                });
               },
               child: const Text("Done"),
             ),

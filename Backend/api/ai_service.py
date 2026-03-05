@@ -1,11 +1,11 @@
 import os
 import json
-import google.generativeai as genai
-from django.conf import settings
-from .models import TradeRequest, User # Adjust imports based on your app name
+from google import genai
+from google.genai import types
+from .models import TradeRequest, User # Adjust based on your app name
 
-# Configure the API key
-genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
+# The client automatically picks up GEMINI_API_KEY from your environment!
+client = genai.Client()
 
 def evaluate_student_behavior(student_id):
     """
@@ -14,7 +14,7 @@ def evaluate_student_behavior(student_id):
     try:
         student = User.objects.get(id=student_id)
         
-        # 1. Gather the last 20 executed trades for this student
+        # 1. Gather the last 20 executed trades
         recent_trades = TradeRequest.objects.filter(
             user=student, 
             status='EXECUTED'
@@ -23,7 +23,7 @@ def evaluate_student_behavior(student_id):
         if not recent_trades:
             return {"status": "skipped", "message": "Not enough data yet."}
 
-        # 2. Format the data into a readable string for the AI
+        # 2. Format the data into text
         trade_history_text = "Recent Trades:\n"
         for trade in recent_trades:
             trade_history_text += f"- {trade.transaction_type} {trade.quantity} shares of {trade.symbol} at ₹{trade.price_at_request}. P&L: ₹{trade.loss_amount if trade.loss_amount else 'Profit/Hold'}\n"
@@ -43,19 +43,22 @@ def evaluate_student_behavior(student_id):
         - Moderate: Mixed portfolio, occasional risk.
         - Aggressive: Heavy focus on volatile individual stocks, frequent trading.
 
-        Return EXACTLY this JSON format:
-        {"discipline_score": 85, "risk_profile": "Moderate"}
+        Return the results in this example JSON format:
+        {{"discipline_score": 30, "risk_profile": "Aggressive"}}
+
+        Follow the example format and return data according to the results of your analysis. Do not include any explanations, only the JSON.
 
         {trade_history_text}
         """
 
-        # 4. Call Gemini (Forcing JSON Output)
-        model = genai.GenerativeModel(
-            'gemini-2.5-flash',
-            generation_config={"response_mime_type": "application/json"}
+        # 4. Call the NEW Gemini SDK
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            ),
         )
-        
-        response = model.generate_content(prompt)
         
         # 5. Parse the JSON and update the database
         ai_data = json.loads(response.text)
