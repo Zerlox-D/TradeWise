@@ -123,7 +123,7 @@ class DashboardHeaderAnalytics {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
-                    "Discipline",
+                    "Discipline Score",
                     style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                   const SizedBox(height: 12),
@@ -308,9 +308,9 @@ class DashboardHeaderAnalytics {
     );
   }
 
-  static Color _getScoreColor(double score) {
-    if (score >= 80) return Colors.greenAccent;
-    if (score >= 50) return Colors.orangeAccent;
+  static Color _getScoreColor(int score) {
+    if (score >= 75) return Colors.greenAccent;
+    if (score >= 40) return Colors.orangeAccent;
     return Colors.redAccent;
   }
 

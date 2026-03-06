@@ -18,7 +18,7 @@ class User(AbstractUser):
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='INVESTOR')
     
     # Gamification & Metrics (The "Behavior-First" logic)
-    discipline_score = models.FloatField(default=50.0)  # Starts at 50/100
+    discipline_score = models.IntegerField(default=50)  # Starts at 50/100
     risk_profile = models.CharField(max_length=20, default='MODERATE')
 
     date_of_birth = models.DateField(null=True, blank=True)
@@ -70,6 +70,7 @@ class TradeRequest(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='EXECUTED')
 
     loss_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # Track loss on this trade
+    brokerage_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # Track brokerage fee for this trade
     mentor_comment = models.TextField(blank=True, null=True) # Reason for locking/rejecting
 
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True) # Total Bill

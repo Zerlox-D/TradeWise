@@ -94,19 +94,19 @@ class _MentorDashboardState extends State<MentorDashboard> {
   }
 
   // Action for mentors to approve/reject high-risk trades
-  void _handleTradeAction(int tradeId, String action) async {
+  void _handleTradeAction(int tradeId, String action, String comment) async {
     // You can optionally show a dialog here to capture a 'comment', but we'll default to empty for now
     bool success = await ApiService.respondToTrade(
       tradeId,
       action,
-      comment: "Reviewed by Mentor.",
+      comment: comment.isEmpty ? "Reviewed by Mentor." : comment,
     );
 
     if (success) {
       _loadDashboardData(); // Refresh UI to remove it from the pending list!
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Trade ${action}d successfully."),
+          content: Text("Trade ${action}ed successfully."),
           backgroundColor: Colors.green,
         ),
       );
@@ -121,6 +121,77 @@ class _MentorDashboardState extends State<MentorDashboard> {
         ),
       );
     }
+  }
+
+  // --- ADD THIS NEW DIALOG FUNCTION ---
+  void _showCommentDialog(int tradeId, String action) {
+    final _commentController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1D1E33),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          action == 'approve' ? "Approve Trade" : "Reject Trade",
+          style: TextStyle(
+            color: action == 'approve' ? Colors.greenAccent : Colors.redAccent,
+            fontWeight: FontWeight.bold
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              action == 'approve' 
+                ? "Add an optional note for the student:" 
+                : "Please provide a reason for rejecting this trade:",
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _commentController,
+              maxLines: 3,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF0A0E21),
+                hintText: "Type your feedback here...",
+                hintStyle: TextStyle(color: Colors.grey[600]),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final comment = _commentController.text.trim();
+              if (action == 'reject' && comment.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Please provide a reason for rejection.")),
+                );
+                return; // Stop them from submitting an empty rejection
+              }
+              Navigator.pop(context);
+              _handleTradeAction(tradeId, action, comment); // Pass the comment to the API!
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: action == 'approve' ? Colors.green[600] : Colors.red[600],
+            ),
+            child: const Text("Submit", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showLogoutConfirmation() {
@@ -198,25 +269,7 @@ class _MentorDashboardState extends State<MentorDashboard> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E21),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  TradeScreen(userGoals: _goals), // Pass the goals!
-            ),
-          ).then(
-            (_) => _loadDashboardData(),
-          ); // Refresh dashboard balance/holdings when they come back!
-        },
-        backgroundColor: Colors.blueAccent,
-        icon: const Icon(Icons.show_chart, color: Colors.white),
-        label: const Text(
-          "TRADE",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-      ),
+      
       appBar: AppBar(
         title: const Text(
           "Dashboard",
@@ -284,12 +337,6 @@ class _MentorDashboardState extends State<MentorDashboard> {
                 ),
               ),
 
-              const SizedBox(height: 30),
-
-              DashboardPortfolio.buildPortfolioPlaceholder(
-                _holdings,
-                _livePrices,
-              ),
               const SizedBox(height: 30),
 
               _buildMentorSection(),
@@ -544,7 +591,7 @@ class _MentorDashboardState extends State<MentorDashboard> {
                             children: [
                               OutlinedButton(
                                 onPressed: () =>
-                                    _handleTradeAction(trade['id'], 'reject'),
+                                    _showCommentDialog(trade['id'], 'reject'),
                                 style: OutlinedButton.styleFrom(
                                   side: const BorderSide(
                                     color: Colors.redAccent,
@@ -558,7 +605,7 @@ class _MentorDashboardState extends State<MentorDashboard> {
                               const SizedBox(width: 12),
                               ElevatedButton(
                                 onPressed: () =>
-                                    _handleTradeAction(trade['id'], 'approve'),
+                                    _showCommentDialog(trade['id'], 'approve'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.green,
                                 ),

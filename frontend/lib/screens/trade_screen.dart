@@ -4,8 +4,9 @@ import 'package:fl_chart/fl_chart.dart';
 
 class TradeScreen extends StatefulWidget {
   final List<dynamic> userGoals; // Passed from the Dashboard!
+  final int userDisciplineScore; // Passed from the Dashboard!
 
-  const TradeScreen({super.key, required this.userGoals});
+  const TradeScreen({super.key, required this.userGoals, required this.userDisciplineScore});
 
   @override
   State<TradeScreen> createState() => _TradeScreenState();
@@ -40,6 +41,17 @@ class _TradeScreenState extends State<TradeScreen> {
   double _minPrice = 0;
   double _maxPrice = 0;
   bool _isLoadingChart = false;
+
+  double getFeePercentage() {
+    // Access the score using widget.userDisciplineScore
+    if (widget.userDisciplineScore >= 75) {
+      return 0.0; // Conservative: 0% fee
+    } else if (widget.userDisciplineScore >= 40) {
+      return 0.01; // Moderate: 1% fee
+    } else {
+      return 0.03; // Reckless: 3% penalty
+    }
+  }
 
   @override
   void dispose() {
@@ -82,6 +94,7 @@ class _TradeScreenState extends State<TradeScreen> {
       });
     }
   }
+  
 
   void _executeTrade() async {
     // 1. Basic Form Validation
@@ -410,24 +423,95 @@ class _TradeScreenState extends State<TradeScreen> {
             ),
             const SizedBox(height: 40),
 
-            // --- 6. ESTIMATED TOTAL & SUBMIT ---
-            if (_livePrice != null) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Estimated Total:",
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
+            // --- 6. ORDER SUMMARY & SUBMIT ---
+            if (_livePrice != null && qty > 0) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1D1E33),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: getFeePercentage() == 0.03 ? Colors.red.withOpacity(0.5) : Colors.transparent,
+                    width: 1,
                   ),
-                  Text(
-                    "₹${estimatedTotal.toStringAsFixed(2)}",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Order Summary",
+                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    
+                    // 1. Base Cost
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("Shares Value (${qty}x)", style: const TextStyle(color: Colors.grey)),
+                        Text("₹${estimatedTotal.toStringAsFixed(2)}", style: const TextStyle(color: Colors.white)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // 2. Brokerage Fee
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Brokerage Fee ${(getFeePercentage() * 100).toInt()}%", 
+                          style: TextStyle(color: getFeePercentage() == 0.03 ? Colors.redAccent : Colors.grey)
+                        ),
+                        Text(
+                          "₹${(estimatedTotal * getFeePercentage()).toStringAsFixed(2)}", 
+                          style: TextStyle(color: getFeePercentage() == 0.03 ? Colors.redAccent : Colors.white)
+                        ),
+                      ],
+                    ),
+                    const Divider(color: Colors.grey, height: 24),
+
+                    // 3. Final Total
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _transactionType == 'BUY' ? "Total Cost" : "Total Payout", 
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+                        ),
+                        Text(
+                          _transactionType == 'BUY' 
+                            ? "₹${(estimatedTotal * (1 + getFeePercentage())).toStringAsFixed(2)}"
+                            : "₹${(estimatedTotal * (1 - getFeePercentage())).toStringAsFixed(2)}", 
+                          style: const TextStyle(color: Colors.blueAccent, fontSize: 18, fontWeight: FontWeight.bold)
+                        ),
+                      ],
+                    ),
+
+                    // 4. Dynamic Warning Text
+                    if (getFeePercentage() == 0.03) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 20),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                "3% Impulse Penalty applied due to low Discipline Score. Hold assets to improve your score!",
+                                style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
               const SizedBox(height: 20),
             ],

@@ -353,4 +353,18 @@ class ApiService {
     }
     return null;
   }
+
+  // Fetch the 24H Market Overview data
+  static Future<Map<String, dynamic>?> getMarketOverview() async {
+    final url = Uri.parse("${AppConstants.baseUrl}/market-overview/");
+    try {
+      final response = await _client.get(url);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      print("Market Overview Fetch Error: $e");
+    }
+    return null;
+  }
 }

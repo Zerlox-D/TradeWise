@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/screens/dashboard_screen.dart';
+import 'package:frontend/screens/main_layout.dart';
 import '../api_service.dart';
 import 'signup_screen.dart';
 // import 'search_mentors.dart';
@@ -74,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       
       Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          MaterialPageRoute(builder: (context) => const MainLayout()),
         );
 
     } else {

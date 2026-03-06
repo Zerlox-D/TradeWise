@@ -8,10 +8,24 @@ from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from .ai_service import evaluate_student_behavior
 from .risk_engine import calculate_risk
 from .models import User, Goal, TradeRequest, MentorLink, Holding
 from .serializers import HoldingSerializer, UserSerializer, GoalSerializer, TradeRequestSerializer, RegisterSerializer, MentorSerializer, MentorLinkSerializer
+
+def calculate_brokerage_fee(total_value, discipline_score):
+    """
+    Returns the fee amount and the label based on the user's discipline score.
+    """
+    if discipline_score >= 75:
+        return Decimal('0.00'), "0% (Disciplined)"
+    elif discipline_score >= 40:
+        # 1% Standard Fee
+        return total_value * Decimal('0.01'), "1% (Standard)"
+    else:
+        # 3% Impulse Penalty
+        return total_value * Decimal('0.03'), "3% (Penalty)"
 
 class UserViewSet(viewsets.ModelViewSet):
     """
@@ -50,9 +64,11 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
                 mentor=user,
                 status='ACCEPTED',
                 ).values_list('student_id', flat=True)
-            return TradeRequest.objects.filter(user__id__in=student_ids)
+            return TradeRequest.objects.filter(
+                Q(user=user) | Q(user__id__in=student_ids, status='PENDING_MENTOR')
+            ).order_by('-created_at')
         else:
-            return TradeRequest.objects.filter(user=user)
+            return TradeRequest.objects.filter(user=user).order_by('-created_at')
 
     def create(self, request, *args, **kwargs):
         user = request.user
@@ -93,6 +109,10 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
 
         total_cost = current_price * quantity
 
+        fee_amount, fee_reason = calculate_brokerage_fee(total_cost, user.discipline_score)
+        total_buy_cost = total_cost + fee_amount   # They pay the cost + the fee
+        total_sell_profit = total_cost - fee_amount # They receive the profit - the fee
+
         # --- 3. CHECK BALANCE (If Buying) ---
         if transaction_type == 'BUY':
             if user.wallet_balance < total_cost:
@@ -103,7 +123,7 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
         has_active_mentor = MentorLink.objects.filter(student=user, status='ACCEPTED').exists()
         
         trade_status = 'EXECUTED' 
-        if risk_color == 'RED':
+        if risk_color == 'RED' and user.role!= 'MENTOR':
             if has_active_mentor:
                 trade_status = 'PENDING_MENTOR'
             else:
@@ -120,6 +140,7 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
             transaction_type=transaction_type,
             price_at_request=current_price,   
             total_amount=total_cost,
+            brokerage_fee=fee_amount,
             justification=justification,      
             risk_level=risk_color,
             status=trade_status
@@ -152,30 +173,25 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
             elif transaction_type == 'SELL':
                 holding = Holding.objects.get(user=user, symbol=symbol)
                 
-                # Calculate Realized Profit/Loss
+                # Calculate Realized Profit/Loss (Including the fee!)
                 buy_value = holding.average_price * quantity
-                sell_value = current_price * quantity
-                realized_pl = sell_value - buy_value
+                realized_pl = total_sell_profit - buy_value 
                 
-                # Add money back to wallet
-                user.wallet_balance += sell_value
+                # Add money back to wallet (Minus the fee)
+                user.wallet_balance += total_sell_profit
                 user.save()
                 
                 # Remove shares from Holding
                 holding.total_quantity -= quantity
                 holding.save()
                 
-                # Update Goal Progress (Behavioral impact)
+                # Update Goal Progress
                 if goal_instance:
-                    # If they made profit, current_amount goes up. If loss, it goes down.
                     goal_instance.current_amount += realized_pl
-                    
-                    # Prevent goal progress from going below zero
                     if goal_instance.current_amount < 0:
                         goal_instance.current_amount = Decimal('0.00')
                     goal_instance.save()
                 
-                # Save the loss amount to the trade receipt for the mentor to see
                 if realized_pl < 0:
                     trade.loss_amount = abs(realized_pl)
                     trade.save()
@@ -215,14 +231,15 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
 
         # --- 3. EXECUTE OR REJECT ---
         if action_type == 'approve':
-            # Important: We must check the balance AGAIN, just in case the student 
-            # spent their money on a different green-tier stock while waiting for approval!
+            # Calculate the final costs using the fee that was saved during the initial request
+            total_buy_cost = trade.total_amount + trade.brokerage_fee
+            
             if trade.transaction_type == 'BUY':
-                if student.wallet_balance < trade.total_amount:
-                    return Response({'error': 'Student no longer has enough funds for this trade.'}, status=status.HTTP_400_BAD_REQUEST)
+                if student.wallet_balance < total_buy_cost:
+                    return Response({'error': 'Student no longer has enough funds for this trade (including fees).'}, status=status.HTTP_400_BAD_REQUEST)
                 
-                # Deduct Money & Update Holdings (Just like standard execution)
-                student.wallet_balance -= trade.total_amount
+                # Deduct Money (Cost + Fee)
+                student.wallet_balance -= total_buy_cost
                 
                 holding, created = Holding.objects.get_or_create(
                     user=student, 
@@ -239,7 +256,6 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
                 student.save()
 
             elif trade.transaction_type == 'SELL':
-                # Important: Check if they sold it somewhere else while waiting
                 try:
                     holding = Holding.objects.get(user=student, symbol=trade.symbol)
                     if holding.total_quantity < trade.quantity:
@@ -247,9 +263,13 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
                     
                     buy_value = holding.average_price * trade.quantity
                     sell_value = trade.price_at_request * trade.quantity
-                    realized_pl = sell_value - buy_value
                     
-                    student.wallet_balance += sell_value
+                    # Subtract the fee from their final payout
+                    total_sell_profit = sell_value - trade.brokerage_fee
+                    realized_pl = total_sell_profit - buy_value
+                    
+                    # Add money back to wallet (Profit - Fee)
+                    student.wallet_balance += total_sell_profit
                     student.save()
                     
                     holding.total_quantity -= trade.quantity
@@ -504,4 +524,65 @@ def get_student_portfolio(request, student_id):
         'discipline_score': student.discipline_score,
         'risk_profile': student.risk_profile,
         'holdings': holdings_data
+    })
+
+# --- ADD THIS TO THE BOTTOM OF YOUR views.py ---
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_market_overview(request):
+    """
+    Fetches 24-hour intraday data for the home page, calculates P&L, 
+    and identifies the Top Gainer and Top Loser.
+    """
+    # Our core list of simulator assets
+    symbols = ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'SBIN', 'NIFTYBEES', 'ADANIENT']
+    market_data = []
+
+    for symbol in symbols:
+        try:
+            stock = yf.Ticker(symbol + ".NS")
+            
+            # Fetch the last trading day's data in 15-minute intervals
+            hist = stock.history(period="1d", interval="15m")
+            
+            if hist.empty:
+                continue
+                
+            hist = hist.dropna(subset=['Close'])
+            
+            # Compare the very first opening price to the most recent closing price
+            first_price = float(hist['Open'].iloc[0])
+            last_price = float(hist['Close'].iloc[-1])
+            
+            # The Math: (New - Old) / Old * 100
+            pct_change = ((last_price - first_price) / first_price) * 100
+            
+            # Extract the raw prices for the Flutter fl_chart
+            sparkline = np.round(hist['Close'].values, 2).tolist()
+            
+            market_data.append({
+                'symbol': symbol,
+                'current_price': round(last_price, 2),
+                'pct_change': round(pct_change, 2),
+                'is_positive': pct_change >= 0,
+                'sparkline': sparkline,
+                'min_price': min(sparkline),
+                'max_price': max(sparkline),
+            })
+        except Exception as e:
+            print(f"Skipping {symbol} due to error: {e}")
+            continue
+
+    if not market_data:
+        return Response({'error': 'Market data unavailable at this time.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # Sort the entire list from highest profit to highest loss
+    market_data.sort(key=lambda x: x['pct_change'], reverse=True)
+
+    # The magic: market_data[0] is the biggest winner, market_data[-1] is the biggest loser
+    return Response({
+        'top_gainer': market_data[0],     
+        'top_loser': market_data[-1],     
+        'assets': market_data             
     })

@@ -2,9 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class DashboardPortfolio {
+
+  static String _formatDate(String? isoString) {
+    if (isoString == null) return "Unknown Date";
+    try {
+      final date = DateTime.parse(isoString).toLocal();
+      // Returns format like "12/10/2025 • 14:30"
+      return "${date.day}/${date.month}/${date.year} • ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      return "Date error";
+    }
+  }
+
   static Widget buildPortfolioPlaceholder(
     List<dynamic> holdings,
     Map<String, double> livePrices,
+    List<dynamic> trades,
   ) {
     // 1. Filter out empty holdings and calculate the total book value
     double totalPortfolioValue = 0;
@@ -25,15 +38,6 @@ class DashboardPortfolio {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "My Portfolio",
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 16),
 
         if (validHoldings.isEmpty)
           Container(
@@ -232,6 +236,159 @@ class DashboardPortfolio {
               );
             },
           ),
+          const SizedBox(height: 32),
+
+          const Text(
+            "Trade History",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          if (trades.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1D1E33),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey[800]!),
+              ),
+              child: const Center(
+                child: Text(
+                  "No trades executed yet.",
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            )
+            else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              // Show newest trades first by reversing the index
+              itemCount: trades.length,
+              itemBuilder: (context, index) {
+                final trade = trades[index];
+                final isBuy = trade['transaction_type'] == 'BUY';
+                final status = trade['status'] ?? 'UNKNOWN';
+                
+                // Color code the status
+                Color statusColor = Colors.grey;
+                if (status == 'EXECUTED') statusColor = Colors.greenAccent;
+                if (status == 'PENDING_MENTOR') statusColor = Colors.orangeAccent;
+                if (status == 'REJECTED') statusColor = Colors.redAccent;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1D1E33),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      // Add a subtle red border if it was rejected!
+                      color: status == 'REJECTED' ? Colors.red.withOpacity(0.3) : Colors.white.withOpacity(0.05)
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // The main trade info row
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isBuy 
+                                  ? Colors.greenAccent.withOpacity(0.1) 
+                                  : Colors.redAccent.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isBuy ? Icons.arrow_downward : Icons.arrow_upward,
+                              color: isBuy ? Colors.greenAccent : Colors.redAccent,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "${trade['transaction_type']} ${trade['symbol']}",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _formatDate(trade['created_at']), 
+                                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                "₹${trade['total_amount']}",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                status.replaceAll('_', ' '), 
+                                style: TextStyle(
+                                  color: statusColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      
+                      // --- NEW: THE MENTOR COMMENT ---
+                      if (trade['mentor_comment'] != null && 
+                          trade['mentor_comment'].toString().isNotEmpty && 
+                          trade['mentor_comment'] != "Reviewed by Mentor.") ...[
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: Divider(color: Colors.white12),
+                        ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.format_quote_rounded, color: Colors.grey[500], size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                "Mentor: ${trade['mentor_comment']}",
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 13,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ]
+                    ],
+                  ),
+                );
+              },
+            ),
         ],
       ],
     );
@@ -320,4 +477,6 @@ class DashboardPortfolio {
       );
     });
   }
+
+
 }

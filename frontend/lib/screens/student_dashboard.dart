@@ -150,25 +150,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E21),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  TradeScreen(userGoals: _goals), // Pass the goals!
-            ),
-          ).then(
-            (_) => _loadDashboardData(),
-          ); // Refresh dashboard balance/holdings when they come back!
-        },
-        backgroundColor: Colors.blueAccent,
-        icon: const Icon(Icons.show_chart, color: Colors.white),
-        label: const Text(
-          "TRADE",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-      ),
       appBar: AppBar(
         title: const Text(
           "Dashboard",
@@ -236,12 +217,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
                 ),
               ),
 
-              const SizedBox(height: 30),
-
-              DashboardPortfolio.buildPortfolioPlaceholder(
-                _holdings,
-                _livePrices,
-              ),
               const SizedBox(height: 30),
 
               _buildStudentSection(),
