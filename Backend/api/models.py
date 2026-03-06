@@ -124,3 +124,11 @@ class Holding(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.symbol} ({self.total_quantity})"
+
+class Asset(models.Model):
+    symbol = models.CharField(max_length=20, unique=True)
+    name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True) # Allows you to easily hide broken stocks later!
+
+    def __str__(self):
+        return f"{self.symbol} - {self.name}"

@@ -367,4 +367,18 @@ class ApiService {
     }
     return null;
   }
+
+  // Fetch the lightweight list of assets for the Trade Screen dropdown
+  static Future<List<dynamic>> getAssets() async {
+    final url = Uri.parse("${AppConstants.baseUrl}/assets/");
+    try {
+      final response = await _client.get(url);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      print("Assets Fetch Error: $e");
+    }
+    return [];
+  }
 }

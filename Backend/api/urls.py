@@ -22,4 +22,5 @@ urlpatterns = [
     path('stock-history/<str:symbol>/', views.get_stock_history, name='stock-history'),
     path('student-portfolio/<int:student_id>/', views.get_student_portfolio, name='student-portfolio'),
     path('market-overview/', views.get_market_overview, name='market-overview'),
+    path('assets/', views.get_assets, name='assets'),
 ]

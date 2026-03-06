@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from .ai_service import evaluate_student_behavior
 from .risk_engine import calculate_risk
-from .models import User, Goal, TradeRequest, MentorLink, Holding
+from .models import Asset, User, Goal, TradeRequest, MentorLink, Holding
 from .serializers import HoldingSerializer, UserSerializer, GoalSerializer, TradeRequestSerializer, RegisterSerializer, MentorSerializer, MentorLinkSerializer
 
 def calculate_brokerage_fee(total_value, discipline_score):
@@ -536,10 +536,11 @@ def get_market_overview(request):
     and identifies the Top Gainer and Top Loser.
     """
     # Our core list of simulator assets
-    symbols = ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'SBIN', 'NIFTYBEES', 'ADANIENT']
+    db_assets = Asset.objects.filter(is_active=True)
     market_data = []
 
-    for symbol in symbols:
+    for asset in db_assets:
+        symbol = asset.symbol
         try:
             stock = yf.Ticker(symbol + ".NS")
             
@@ -563,6 +564,7 @@ def get_market_overview(request):
             
             market_data.append({
                 'symbol': symbol,
+                'name': asset.name,
                 'current_price': round(last_price, 2),
                 'pct_change': round(pct_change, 2),
                 'is_positive': pct_change >= 0,
@@ -586,3 +588,13 @@ def get_market_overview(request):
         'top_loser': market_data[-1],     
         'assets': market_data             
     })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_assets(request):
+    """
+    Returns a lightweight list of all active assets for dropdown menus.
+    """
+    # .values() is super fast and returns a list of dictionaries directly!
+    assets = Asset.objects.filter(is_active=True).values('symbol', 'name')
+    return Response(list(assets))
