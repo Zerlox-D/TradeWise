@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import '../api_service.dart';
 import 'student_dashboard.dart';
 import 'mentor_dashboard.dart';
@@ -114,9 +115,9 @@ class _MainLayoutState extends State<MainLayout> {
         elevation: 0,
         shape: const CircleBorder(),
         child: const Icon(
-          Icons.bolt_rounded,
+          FeatherIcons.activity,
           color: Color(0xFF0A0E21),
-          size: 28,
+          size: 32,
         ),
       ),
     );

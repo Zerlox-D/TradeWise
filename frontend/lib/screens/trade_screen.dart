@@ -54,6 +54,9 @@ class _TradeScreenState extends State<TradeScreen> {
   double _maxPrice = 0;
   bool _isLoadingChart = false;
 
+  Map<String, dynamic>? _aiRiskData;
+  bool _isLoadingRisk = false;
+
   double getFeePercentage() {
     if (widget.userDisciplineScore >= 75) return 0.0;
     if (widget.userDisciplineScore >= 40) return 0.01;
@@ -72,17 +75,23 @@ class _TradeScreenState extends State<TradeScreen> {
       _selectedSymbol = symbol;
       _isLoadingPrice = true;
       _isLoadingChart = true;
+      _isLoadingRisk = true;
+      _aiRiskData = null;
       _livePrice = null;
       _chartPrices = [];
     });
 
     final price = await ApiService.getLivePrice(symbol);
     final history = await ApiService.getStockHistory(symbol);
+    final riskData = await ApiService.getAIRiskAssessment(symbol);
 
     if (mounted) {
       setState(() {
         _livePrice = price;
         _isLoadingPrice = false;
+        _aiRiskData = riskData;
+        _isLoadingRisk = false;
+
         if (history != null) {
           _chartPrices = List<double>.from(
             history['prices'].map((x) => x.toDouble()),
@@ -118,6 +127,7 @@ class _TradeScreenState extends State<TradeScreen> {
       quantity: qty,
       goalId: _selectedGoalId!,
       justification: _justificationController.text,
+      riskLevel: _aiRiskData!['risk_level'],
     );
     if (!mounted) return;
     setState(() => _isSubmitting = false);
@@ -209,6 +219,108 @@ class _TradeScreenState extends State<TradeScreen> {
     );
   }
 
+  void _showRiskInfoDialog(String reasoning) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF151A30),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFF1E2440), width: 1),
+        ),
+        contentPadding: const EdgeInsets.all(24),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // AI Icon with gradient background
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF42A5F5), Color(0xFF1976D2)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF42A5F5).withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.auto_awesome_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Title
+            const Text(
+              "AI Risk Analysis",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Reasoning container
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0A0E21),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF1E2440), width: 1),
+              ),
+              child: Text(
+                reasoning,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  height: 1.6,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Action button
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00E676),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  "Got it",
+                  style: TextStyle(
+                    color: Color(0xFF0A0E21),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Color _getSymbolColor(String symbol) {
     const colors = [
       Color(0xFF5C6BC0),
@@ -230,6 +342,22 @@ class _TradeScreenState extends State<TradeScreen> {
       ? const Color(0xFF00E676)
       : (_isChartPositive ? const Color(0xFF00E676) : Colors.redAccent);
 
+  String _getAssetDisplayName(String symbol) {
+    for (final asset in _availableAssets) {
+      if (asset is Map && asset['symbol']?.toString() == symbol) {
+        final name =
+            (asset['name'] ??
+                    asset['company_name'] ??
+                    asset['display_name'] ??
+                    '')
+                .toString()
+                .trim();
+        if (name.isNotEmpty) return name;
+      }
+    }
+    return symbol;
+  }
+
   @override
   Widget build(BuildContext context) {
     final int qty = int.tryParse(_quantityController.text) ?? 0;
@@ -238,6 +366,9 @@ class _TradeScreenState extends State<TradeScreen> {
     final Color actionColor = isBuy
         ? const Color(0xFF00E676)
         : Colors.redAccent;
+    final Color submitTextColor = isBuy
+        ? const Color(0xFF0A0E21)
+        : Colors.white;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E21),
@@ -278,28 +409,19 @@ class _TradeScreenState extends State<TradeScreen> {
                           Icon(
                             Icons.bolt_rounded,
                             color: Color(0xFF00E676),
-                            size: 13,
+                            size: 16,
                           ),
                           SizedBox(width: 4),
                           Text(
                             "TRADEWISE",
                             style: TextStyle(
                               color: Color(0xFF00E676),
-                              fontSize: 11,
+                              fontSize: 16,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 1.5,
                             ),
                           ),
                         ],
-                      ),
-                      const Text(
-                        "New Trade",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.3,
-                        ),
                       ),
                     ],
                   ),
@@ -474,12 +596,13 @@ class _TradeScreenState extends State<TradeScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    _selectedSymbol!,
+                                    _getAssetDisplayName(_selectedSymbol!),
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 15,
                                       fontWeight: FontWeight.w600,
                                     ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
                                     "NSE",
@@ -488,6 +611,99 @@ class _TradeScreenState extends State<TradeScreen> {
                                       fontSize: 11,
                                     ),
                                   ),
+                                  const SizedBox(height: 6),
+
+                                  // --- THE NEW AI RISK BADGE ---
+                                  if (_isLoadingRisk)
+                                    const SizedBox(
+                                      height: 14,
+                                      width: 14,
+                                      child: CircularProgressIndicator(
+                                        color: Color(0xFF42A5F5),
+                                        strokeWidth: 1.5,
+                                      ),
+                                    )
+                                  else if (_aiRiskData != null)
+                                    GestureDetector(
+                                      onTap: () => _showRiskInfoDialog(
+                                        _aiRiskData!['reasoning'],
+                                      ),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Color(
+                                            int.parse(
+                                              _aiRiskData!['risk_color']
+                                                  .replaceFirst('#', '0xFF'),
+                                            ),
+                                          ).withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          border: Border.all(
+                                            color: Color(
+                                              int.parse(
+                                                _aiRiskData!['risk_color']
+                                                    .replaceFirst('#', '0xFF'),
+                                              ),
+                                            ).withOpacity(0.3),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.auto_awesome,
+                                              size: 10,
+                                              color: Color(
+                                                int.parse(
+                                                  _aiRiskData!['risk_color']
+                                                      .replaceFirst(
+                                                        '#',
+                                                        '0xFF',
+                                                      ),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              _aiRiskData!['risk_level'],
+                                              style: TextStyle(
+                                                color: Color(
+                                                  int.parse(
+                                                    _aiRiskData!['risk_color']
+                                                        .replaceFirst(
+                                                          '#',
+                                                          '0xFF',
+                                                        ),
+                                                  ),
+                                                ),
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Icon(
+                                              Icons.info_outline_rounded,
+                                              size: 12,
+                                              color: Color(
+                                                int.parse(
+                                                  _aiRiskData!['risk_color']
+                                                      .replaceFirst(
+                                                        '#',
+                                                        '0xFF',
+                                                      ),
+                                                ),
+                                              ).withOpacity(0.8),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
@@ -815,10 +1031,10 @@ class _TradeScreenState extends State<TradeScreen> {
                               )
                             : Text(
                                 "SUBMIT $_transactionType ORDER",
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF0A0E21),
+                                  color: submitTextColor,
                                   letterSpacing: 0.6,
                                 ),
                               ),
@@ -973,7 +1189,7 @@ class _TradeScreenState extends State<TradeScreen> {
 
     return Container(
       height: 200,
-      padding: const EdgeInsets.fromLTRB(4, 20, 16, 12),
+      padding: const EdgeInsets.fromLTRB(12, 20, 12, 12),
       decoration: BoxDecoration(
         color: const Color(0xFF151A30),
         borderRadius: BorderRadius.circular(16),
@@ -996,19 +1212,37 @@ class _TradeScreenState extends State<TradeScreen> {
                 showTitles: true,
                 reservedSize: 22,
                 getTitlesWidget: (value, meta) {
-                  final int index = value.toInt();
-                  if (index == 0 ||
-                      index == (_chartPrices.length / 2).floor() ||
-                      index == _chartPrices.length - 1) {
-                    return Text(
-                      _chartDates[index],
-                      style: const TextStyle(
-                        color: Color(0xFF4C5078),
-                        fontSize: 10,
-                      ),
-                    );
+                  if (_chartPrices.isEmpty || _chartDates.isEmpty) {
+                    return const SizedBox.shrink();
                   }
-                  return const Text('');
+
+                  final int lastIndex = _chartPrices.length - 1;
+                  final int midIndex = (_chartPrices.length / 2).floor();
+                  final int index = value.toInt().clamp(0, lastIndex);
+
+                  final bool show =
+                      index == 0 || index == midIndex || index == lastIndex;
+                  if (!show) return const SizedBox.shrink();
+
+                  final bool isFirst = index == 0;
+                  final bool isLast = index == lastIndex;
+                  final double dx = isFirst ? 10 : (isLast ? -10 : 0);
+                  final String dateLabel = _chartDates[index];
+
+                  return SideTitleWidget(
+                    meta: meta,
+                    space: 6,
+                    child: Transform.translate(
+                      offset: Offset(dx, 0),
+                      child: Text(
+                        dateLabel,
+                        style: const TextStyle(
+                          color: Color(0xFF4C5078),
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  );
                 },
               ),
             ),

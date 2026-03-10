@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import '../api_service.dart';
 import 'login_screen.dart';
 import 'student_portfolio_screen.dart';
-import 'trade_screen.dart';
 import '../widgets/dashboard_header_analytics.dart';
-import '../widgets/dashboard_portfolio.dart';
 
 class MentorDashboard extends StatefulWidget {
   const MentorDashboard({super.key});

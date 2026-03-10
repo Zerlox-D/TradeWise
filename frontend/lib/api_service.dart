@@ -255,6 +255,7 @@ class ApiService {
     required int quantity,
     required int goalId,
     required String justification,
+    String? riskLevel,
   }) async {
     final url = Uri.parse("${AppConstants.baseUrl}/trades/");
     try {
@@ -266,6 +267,7 @@ class ApiService {
           'quantity': quantity,
           'goal': goalId,
           'justification': justification,
+          'risk_level': riskLevel,
         }),
       );
       
@@ -380,5 +382,25 @@ class ApiService {
       print("Assets Fetch Error: $e");
     }
     return [];
+  }
+
+  // Fetch dynamic AI Risk Assessment from Gemini
+  static Future<Map<String, dynamic>?> getAIRiskAssessment(String symbol) async {
+    final url = Uri.parse("${AppConstants.baseUrl}/ai-risk-assessment/"); 
+    try {
+      final response = await _client.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({'symbol': symbol}),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        print("AI Risk API Error: ${response.body}");
+      }
+    } catch (e) {
+      print("Network Error: $e");
+    }
+    return null;
   }
 }

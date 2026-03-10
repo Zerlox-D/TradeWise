@@ -78,11 +78,11 @@ class TradeRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     RISK_CHOICES=(
-        ('GREEN', 'Low Risk'),
-        ('YELLOW', 'Medium Risk'),
-        ('RED', 'High Risk'),
+        ('LOW', 'Low Risk'),
+        ('MODERATE', 'Moderate Risk'),
+        ('HIGH', 'High Risk'),
     )
-    risk_level = models.CharField(max_length=10, choices=RISK_CHOICES, default='GREEN')
+    risk_level = models.CharField(max_length=10, choices=RISK_CHOICES, default='LOW')
 
     def __str__(self):
         return f"{self.transaction_type} {self.symbol} - {self.status}"

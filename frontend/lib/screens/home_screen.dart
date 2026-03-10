@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../api_service.dart';
 
@@ -66,7 +67,9 @@ class _HomeScreenState extends State<HomeScreen> {
       displayList = allAssets;
     } else {
       final top5 = allAssets.take(5).toList(); // Biggest 5 gainers
-      final bottom5 = allAssets.skip(allAssets.length - 5).toList(); // Biggest 5 losers
+      final bottom5 = allAssets
+          .skip(allAssets.length - 5)
+          .toList(); // Biggest 5 losers
       displayList = [...top5, ...bottom5];
     }
 
@@ -74,131 +77,136 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: const Color(0xFF0A0E21),
       // Use SafeArea since we don't have a standard AppBar on this screen
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _fetchMarketData,
-          color: Colors.greenAccent,
-          backgroundColor: const Color(0xFF1D1E33),
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // --- HEADER ---
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.bolt_rounded,
-                              color: Color(0xFF00E676),
-                              size: 18,
-                            ),
-                            const SizedBox(width: 6),
-                            const Text(
-                              "TRADEWISE",
-                              style: TextStyle(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // --- HEADER ---
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.bolt_rounded,
                                 color: Color(0xFF00E676),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.5,
+                                size: 18,
                               ),
+                              const SizedBox(width: 6),
+                              const Text(
+                                "TRADEWISE",
+                                style: TextStyle(
+                                  color: Color(0xFF00E676),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          const Text(
+                            "Market Movers",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.5,
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        const Text(
-                          "Market Movers",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.5,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Track intraday gainers & losers",
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 13,
+                          const SizedBox(height: 4),
+                          Text(
+                            "Track intraday gainers & losers",
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 13,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // --- TOP CARDS (THE SPARKLINES) ---
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildSparklineCard(topGainer, isGainer: true),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildSparklineCard(topLoser, isGainer: false),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-
-                // --- THE LIST ---
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 3,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF00E676),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          "Market Overview",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
+                        ],
                       ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00E676).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // --- TOP CARDS (THE SPARKLINES) ---
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildSparklineCard(topGainer, isGainer: true),
                       ),
-                      child: Text(
-                        "${displayList.length} Assets",
-                        style: const TextStyle(
-                          color: Color(0xFF00E676),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildSparklineCard(topLoser, isGainer: false),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+
+                  // --- MARKET OVERVIEW HEADER (FIXED) ---
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 3,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00E676),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            "Market Overview",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00E676).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          "${displayList.length} Assets",
+                          style: const TextStyle(
+                            color: Color(0xFF00E676),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _fetchMarketData,
+                color: Colors.greenAccent,
+                backgroundColor: const Color(0xFF1D1E33),
+                child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 30),
                   itemCount: displayList.length,
                   itemBuilder: (context, index) {
                     final asset = displayList[index];
@@ -330,12 +338,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                 ),
-                const SizedBox(
-                  height: 80,
-                ), // Padding so the Bottom Nav Bar doesn't cover the last item
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

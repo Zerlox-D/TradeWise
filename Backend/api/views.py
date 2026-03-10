@@ -4,15 +4,21 @@ import numpy as np
 from decimal import Decimal
 from rest_framework import viewsets, permissions, generics, status, filters
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
+
+from django.utils import timezone
+from datetime import timedelta
 from django.db.models import Q
 from .ai_service import evaluate_student_behavior
-from .risk_engine import calculate_risk
+from .ai_risk_engine import analyze_stock_risk
 from .models import Asset, User, Goal, TradeRequest, MentorLink, Holding
 from .serializers import HoldingSerializer, UserSerializer, GoalSerializer, TradeRequestSerializer, RegisterSerializer, MentorSerializer, MentorLinkSerializer
+
 
 def calculate_brokerage_fee(total_value, discipline_score):
     """
@@ -119,11 +125,11 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
                 return Response({'error': 'Insufficient Funds'}, status=status.HTTP_400_BAD_REQUEST)
 
         # --- 4. RISK ENGINE CHECK 🚦 ---
-        risk_color = calculate_risk(symbol, quantity, user.risk_profile)
+        risk_level = request.data.get('risk_level', 'LOW')
         has_active_mentor = MentorLink.objects.filter(student=user, status='ACCEPTED').exists()
         
         trade_status = 'EXECUTED' 
-        if risk_color == 'RED' and user.role!= 'MENTOR':
+        if risk_level == 'HIGH' and user.role!= 'MENTOR':
             if has_active_mentor:
                 trade_status = 'PENDING_MENTOR'
             else:
@@ -142,7 +148,7 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
             total_amount=total_cost,
             brokerage_fee=fee_amount,
             justification=justification,      
-            risk_level=risk_color,
+            risk_level=risk_level,
             status=trade_status
         )
 
@@ -346,8 +352,8 @@ class MentorLinkViewSet(viewsets.ModelViewSet):
         else:
             return MentorLink.objects.filter(student=user)
 
-    # --- REPLACE YOUR EXISTING perform_create WITH THESE TWO METHODS ---
     def create(self, request, *args, **kwargs):
+
         student = request.user
         mentor_id = request.data.get('mentor')
 
@@ -359,6 +365,11 @@ class MentorLinkViewSet(viewsets.ModelViewSet):
             mentor = User.objects.get(id=mentor_id, role='MENTOR')
         except User.DoesNotExist:
             return Response({'error': 'Mentor not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if mentor.discipline_score < 50:
+            return Response({
+                'error': 'This mentor currently has a Discipline Score below 50 and is locked from accepting new students.'
+            }, status=status.HTTP_403_FORBIDDEN)
 
         # 2. Check if a link already exists specifically between this student and this mentor
         link = MentorLink.objects.filter(student=student, mentor=mentor).first()
@@ -598,3 +609,33 @@ def get_assets(request):
     # .values() is super fast and returns a list of dictionaries directly!
     assets = Asset.objects.filter(is_active=True).values('symbol', 'name')
     return Response(list(assets))
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def get_ai_risk_assessment(request):
+    """
+    Fetches live data for a single selected stock and asks Gemini for a risk assessment.
+    """
+    symbol = request.data.get('symbol')
+    if not symbol:
+        return Response({'error': 'Symbol is required'}, status=400)
+        
+    try:
+        # 1. Fetch the live 24h data to feed the AI
+        stock = yf.Ticker(symbol + ".NS")
+        hist = stock.history(period="1d", interval="15m")
+        
+        if hist.empty:
+            return Response({'error': 'No data available'}, status=400)
+            
+        current_price = round(float(hist['Close'].iloc[-1]), 2)
+        high_24h = round(float(hist['High'].max()), 2)
+        low_24h = round(float(hist['Low'].min()), 2)
+        
+        # 2. Ask Gemini to analyze it!
+        ai_assessment = analyze_stock_risk(symbol, current_price, high_24h, low_24h)
+        
+        return Response(ai_assessment)
+        
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
