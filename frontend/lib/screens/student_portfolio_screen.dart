@@ -17,6 +17,7 @@ class StudentPortfolioScreen extends StatefulWidget {
 
 class _StudentPortfolioScreenState extends State<StudentPortfolioScreen> {
   Map<String, dynamic>? _portfolioData;
+  List<dynamic> _trades = [];
   bool _isLoading = true;
 
   @override
@@ -27,9 +28,12 @@ class _StudentPortfolioScreenState extends State<StudentPortfolioScreen> {
 
   void _loadData() async {
     final data = await ApiService.getStudentPortfolio(widget.studentId);
+
     if (mounted) {
       setState(() {
         _portfolioData = data;
+        // Filter trades to only this student's trades and take last 5
+        _trades = data?['recent_trades'] ?? [];
         _isLoading = false;
       });
     }
@@ -49,6 +53,16 @@ class _StudentPortfolioScreenState extends State<StudentPortfolioScreen> {
       hash = (hash * 31 + char) & 0xFFFFFF;
     }
     return colors[hash % colors.length];
+  }
+
+  static String _formatDate(String? isoString) {
+    if (isoString == null) return "Unknown Date";
+    try {
+      final date = DateTime.parse(isoString).toLocal();
+      return "${date.day}/${date.month}/${date.year} • ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      return "Date error";
+    }
   }
 
   @override
@@ -427,6 +441,227 @@ class _StudentPortfolioScreenState extends State<StudentPortfolioScreen> {
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                   ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    const SizedBox(height: 28),
+
+                    // --- TRADE HISTORY SECTION ---
+                    Row(
+                      children: [
+                        Container(
+                          width: 3,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00E676),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Trade History',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00E676).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'Last 5 Trades',
+                            style: TextStyle(
+                              color: Color(0xFF00E676),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    if (_trades.isEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(32),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF151A30),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFF1E2440)),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            "This student hasn't made any trades yet.",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                      )
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _trades.length,
+                        itemBuilder: (context, index) {
+                          final trade = _trades[index];
+                          final isBuy = trade['transaction_type'] == 'BUY';
+                          final symbol = (trade['symbol'] ?? 'X') as String;
+                          final qty = trade['quantity'];
+                          final pricePerShare =
+                              double.tryParse(
+                                trade['price_at_request'].toString(),
+                              ) ??
+                              0.0;
+                          final totalAmount =
+                              double.tryParse(
+                                trade['total_amount'].toString(),
+                              ) ??
+                              0.0;
+                          final status = trade['status'] as String;
+                          final symbolColor = _getSymbolColor(symbol);
+
+                          Color statusColor = Colors.grey;
+                          if (status == 'EXECUTED') {
+                            statusColor = const Color(0xFF00E676);
+                          } else if (status == 'PENDING_MENTOR' ||
+                              status == 'PENDING_EXECUTION') {
+                            statusColor = const Color(0xFFFFB74D);
+                          } else if (status == 'REJECTED' ||
+                              status == 'FAILED') {
+                            statusColor = const Color(0xFFFF5252);
+                          }
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF151A30),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: const Color(0xFF1E2440),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 42,
+                                  height: 42,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        symbolColor.withOpacity(0.2),
+                                        symbolColor.withOpacity(0.05),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      symbol.isNotEmpty
+                                          ? symbol.substring(0, 1)
+                                          : '?',
+                                      style: TextStyle(
+                                        color: symbolColor,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 17,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            isBuy
+                                                ? Icons.arrow_downward
+                                                : Icons.arrow_upward,
+                                            color: isBuy
+                                                ? const Color(0xFF00E676)
+                                                : const Color(0xFFFFB74D),
+                                            size: 14,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            symbol,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        _formatDate(trade['created_at']), 
+                                        style: TextStyle(
+                                          color: Colors.grey[500], 
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '$qty × ₹${pricePerShare.toStringAsFixed(2)}',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      '₹${totalAmount.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        status,
+                                        style: TextStyle(
+                                          color: statusColor,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

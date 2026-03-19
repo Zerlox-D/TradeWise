@@ -14,10 +14,10 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Q
-from .ai_service import evaluate_student_behavior
+from .ai_service import evaluate_student_behavior, draft_quiz_with_ai
 from .ai_risk_engine import analyze_stock_risk
-from .models import Asset, User, Goal, TradeRequest, MentorLink, Holding
-from .serializers import HoldingSerializer, UserSerializer, GoalSerializer, TradeRequestSerializer, RegisterSerializer, MentorSerializer, MentorLinkSerializer
+from .models import Asset, User, Goal, TradeRequest, MentorLink, Holding, TradeUnlockRequest, Quiz, QuizQuestion
+from .serializers import HoldingSerializer, UserSerializer, GoalSerializer, TradeRequestSerializer, RegisterSerializer, MentorSerializer, MentorLinkSerializer, TradeUnlockRequestSerializer
 
 
 def calculate_brokerage_fee(total_value, discipline_score):
@@ -79,6 +79,12 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         user = request.user
         data = request.data.copy()
+
+        # Hard stop: a behavior lock blocks all trading until mentor approval.
+        if user.role != 'MENTOR' and user.is_trade_locked:
+            return Response({
+                'error': user.trade_lock_reason or 'Trading is temporarily locked due to consecutive discipline drops.'
+            }, status=status.HTTP_423_LOCKED)
         
         symbol = data.get('symbol').upper()
         quantity = int(data.get('quantity'))
@@ -125,16 +131,21 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
                 return Response({'error': 'Insufficient Funds'}, status=status.HTTP_400_BAD_REQUEST)
 
         # --- 4. RISK ENGINE CHECK 🚦 ---
-        risk_level = request.data.get('risk_level', 'LOW')
+        risk_level = request.data.get('risk_level', 'MODERATE')
         has_active_mentor = MentorLink.objects.filter(student=user, status='ACCEPTED').exists()
         
-        trade_status = 'EXECUTED' 
-        if risk_level == 'HIGH' and user.role!= 'MENTOR':
-            if has_active_mentor:
-                trade_status = 'PENDING_MENTOR'
-            else:
+        trade_status = 'EXECUTED'
+        if user.role != 'MENTOR':
+            if risk_level == 'HIGH':
+                if has_active_mentor:
+                    trade_status = 'PENDING_MENTOR'
+                else:
+                    return Response({
+                        'error': 'High-risk trades are locked. Please connect with a mentor to unlock this asset tier.'
+                    }, status=status.HTTP_403_FORBIDDEN)
+            elif risk_level == 'MODERATE' and not has_active_mentor:
                 return Response({
-                    'error': 'High-risk trades are locked. Please connect with a mentor to unlock this asset tier.'
+                    'error': 'Moderate-risk trades are locked. Please connect with a mentor to unlock this asset tier.'
                 }, status=status.HTTP_403_FORBIDDEN)
             
         # --- 5. SAVE THE TRADE ---
@@ -412,6 +423,77 @@ class MentorLinkViewSet(viewsets.ModelViewSet):
             return Response({'status': 'Mentorship Rejected'})
             
         return Response({'error': 'Invalid action'}, status=400)
+
+
+class TradeUnlockRequestViewSet(viewsets.ModelViewSet):
+    serializer_class = TradeUnlockRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'MENTOR':
+            return TradeUnlockRequest.objects.filter(mentor=user)
+        return TradeUnlockRequest.objects.filter(student=user)
+
+    def create(self, request, *args, **kwargs):
+        student = request.user
+
+        if student.role == 'MENTOR':
+            return Response({'error': 'Mentors cannot request trade unlocks.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not student.is_trade_locked:
+            return Response({'error': 'Trading is not currently locked for this account.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        mentor_link = MentorLink.objects.filter(student=student, status='ACCEPTED').first()
+        if not mentor_link:
+            return Response({'error': 'No active mentor found for unlock request.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if TradeUnlockRequest.objects.filter(student=student, status='PENDING').exists():
+            return Response({'error': 'You already have a pending unlock request.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        unlock_request = TradeUnlockRequest.objects.create(
+            student=student,
+            mentor=mentor_link.mentor,
+            requested_reason=student.trade_lock_reason,
+            status='PENDING'
+        )
+
+        serializer = self.get_serializer(unlock_request)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def respond(self, request, pk=None):
+        unlock_request = self.get_object()
+
+        if request.user != unlock_request.mentor:
+            return Response({'error': 'Not authorized to review this unlock request.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if unlock_request.status != 'PENDING':
+            return Response({'error': 'This unlock request is no longer pending.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        action_type = request.data.get('action')
+        mentor_comment = request.data.get('comment', '')
+
+        if action_type == 'approve':
+            student = unlock_request.student
+            student.is_trade_locked = False
+            student.trade_lock_reason = ''
+            student.discipline_drop_streak = 0
+            student.save(update_fields=['is_trade_locked', 'trade_lock_reason', 'discipline_drop_streak'])
+
+            unlock_request.status = 'APPROVED'
+            unlock_request.mentor_comment = mentor_comment
+            unlock_request.save()
+
+            return Response({'status': 'Trade lock removed successfully.'})
+
+        if action_type == 'reject':
+            unlock_request.status = 'REJECTED'
+            unlock_request.mentor_comment = mentor_comment
+            unlock_request.save()
+            return Response({'status': 'Unlock request rejected. Student remains locked.'})
+
+        return Response({'error': 'Invalid action. Must be "approve" or "reject".'}, status=status.HTTP_400_BAD_REQUEST)
     
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -421,6 +503,30 @@ def get_user_profile(request):
     Returns the profile data of the user attached to the token.
     """
     user = request.user
+    has_active_mentor = MentorLink.objects.filter(student=user, status='ACCEPTED').exists()
+    has_pending_unlock_request = TradeUnlockRequest.objects.filter(student=user, status='PENDING').exists()
+
+    # --- NEW: Mentor Notification Engine ---
+    has_pending_mentor_actions = False
+    has_passed_quizzes = False
+    
+    if user.role == 'MENTOR':
+        # 1. Anyone waiting to connect?
+        pending_links = MentorLink.objects.filter(mentor=user, status='PENDING').exists()
+        
+        # 2. Anyone begging to be unlocked?
+        pending_unlocks = TradeUnlockRequest.objects.filter(mentor=user, status='PENDING').exists()
+        
+        # 3. Any high-risk trades waiting for approval?
+        # (First find their students, then check those students' trades)
+        student_ids = MentorLink.objects.filter(mentor=user, status='ACCEPTED').values_list('student_id', flat=True)
+        pending_trades = TradeRequest.objects.filter(user_id__in=student_ids, status='PENDING_MENTOR').exists()
+
+        # If ANY of these are true, the flag is true!
+        has_pending_mentor_actions = pending_links or pending_unlocks or pending_trades
+
+        has_passed_quizzes = Quiz.objects.filter(mentor=user, status='PASSED').exists()
+
     return Response({
         'id': user.id,
         'username': user.username,
@@ -428,6 +534,12 @@ def get_user_profile(request):
         'discipline_score': user.discipline_score,
         'wallet_balance': str(user.wallet_balance),
         'risk_profile': user.risk_profile,
+        'is_trade_locked': user.is_trade_locked,
+        'trade_lock_reason': user.trade_lock_reason,
+        'has_active_mentor': has_active_mentor,
+        'has_pending_unlock_request': has_pending_unlock_request,
+        'has_pending_mentor_actions': has_pending_mentor_actions,
+        'has_passed_quizzes': has_passed_quizzes
     })
 
 @api_view(['GET'])
@@ -519,6 +631,8 @@ def get_student_portfolio(request, student_id):
     # 2. Fetch the Data
     student = get_object_or_404(User, id=student_id)
     holdings = Holding.objects.filter(user=student, total_quantity__gt=0) # Only grab assets they actually own
+    recent_trades = TradeRequest.objects.filter(user_id=student_id).order_by('-created_at')[:5]
+    trade_data = TradeRequestSerializer(recent_trades, many=True).data
 
     # 3. Format it for Flutter
     holdings_data = [
@@ -534,7 +648,8 @@ def get_student_portfolio(request, student_id):
         'wallet_balance': str(student.wallet_balance),
         'discipline_score': student.discipline_score,
         'risk_profile': student.risk_profile,
-        'holdings': holdings_data
+        'holdings': holdings_data,
+        'recent_trades': trade_data
     })
 
 # --- ADD THIS TO THE BOTTOM OF YOUR views.py ---
@@ -614,28 +729,344 @@ def get_assets(request):
 @permission_classes([IsAuthenticated])
 def get_ai_risk_assessment(request):
     """
-    Fetches live data for a single selected stock and asks Gemini for a risk assessment.
+    Fetches 30-day data for a stock, computes the mean daily volatility spread,
+    and asks Gemini for a risk assessment.
     """
     symbol = request.data.get('symbol')
     if not symbol:
         return Response({'error': 'Symbol is required'}, status=400)
         
     try:
-        # 1. Fetch the live 24h data to feed the AI
+        # 1. Fetch 30 trading days of daily candles.
         stock = yf.Ticker(symbol + ".NS")
-        hist = stock.history(period="1d", interval="15m")
+        hist = stock.history(period="1mo", interval="1d")
         
         if hist.empty:
             return Response({'error': 'No data available'}, status=400)
+
+        hist = hist.dropna(subset=['High', 'Low', 'Close'])
+        if hist.empty:
+            return Response({'error': 'Incomplete market data for risk analysis.'}, status=400)
+
+        # 2. Calculate each day's spread: ((High - Low) / Low) * 100.
+        daily_spreads = ((hist['High'] - hist['Low']) / hist['Low'].replace(0, np.nan)) * 100
+        daily_spreads = daily_spreads.replace([np.inf, -np.inf], np.nan).dropna()
+
+        if daily_spreads.empty:
+            return Response({'error': 'Unable to calculate volatility spread.'}, status=400)
             
         current_price = round(float(hist['Close'].iloc[-1]), 2)
-        high_24h = round(float(hist['High'].max()), 2)
-        low_24h = round(float(hist['Low'].min()), 2)
+        mean_30d_spread = round(float(daily_spreads.tail(30).mean()), 2)
         
-        # 2. Ask Gemini to analyze it!
-        ai_assessment = analyze_stock_risk(symbol, current_price, high_24h, low_24h)
+        # 3. Ask Gemini to classify risk from the 30-day mean spread.
+        ai_assessment = analyze_stock_risk(symbol, current_price, mean_30d_spread)
         
         return Response(ai_assessment)
         
     except Exception as e:
         return Response({'error': str(e)}, status=500)
+    
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def draft_mentor_quiz(request, student_id):
+    """
+    Called by the Mentor. Fetches the student's last 5 trades, 
+    asks the AI to draft a quiz, and saves it to the database as a DRAFT.
+    """
+    mentor = request.user
+    # Assuming you have a custom User model, get the student
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    student = get_object_or_404(User, id=student_id)
+
+    # 1. Fetch the student's last 5 trades
+    recent_trades = TradeRequest.objects.filter(user=student).order_by('-created_at')[:5]
+    
+    if not recent_trades.exists():
+        return Response({"error": "This student has no trades to analyze."}, status=status.HTTP_400_BAD_REQUEST)
+
+    trade_data = TradeRequestSerializer(recent_trades, many=True).data
+
+    # 2. Hand the trades to Gemini!
+    ai_quiz_data = draft_quiz_with_ai(trade_data)
+
+    if not ai_quiz_data:
+        return Response({"error": "The AI failed to generate the quiz. Please try again."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # 3. Create the master Quiz record (Status defaults to 'DRAFT')
+    quiz = Quiz.objects.create(
+        student=student,
+        mentor=mentor,
+        status='DRAFT'
+    )
+
+    # 4. Loop through the AI's JSON list and create the Question rows
+    response_questions = []
+    for q_data in ai_quiz_data:
+        question = QuizQuestion.objects.create(
+            quiz=quiz,
+            question_text=q_data.get('question_text', ''),
+            option_a=q_data.get('option_a', ''),
+            option_b=q_data.get('option_b', ''),
+            option_c=q_data.get('option_c', ''),
+            option_d=q_data.get('option_d', ''),
+            correct_answer=q_data.get('correct_answer', 'A'),
+            explanation=q_data.get('explanation', '')
+        )
+        
+        # We pack this up so Flutter can immediately display it in the text fields
+        response_questions.append({
+            'id': question.id,
+            'question_text': question.question_text,
+            'option_a': question.option_a,
+            'option_b': question.option_b,
+            'option_c': question.option_c,
+            'option_d': question.option_d,
+            'correct_answer': question.correct_answer,
+            'explanation': question.explanation
+        })
+
+    return Response({
+        'message': 'Draft generated successfully!',
+        'quiz_id': quiz.id,
+        'questions': response_questions
+    }, status=status.HTTP_201_CREATED)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def publish_mentor_quiz(request, quiz_id):
+    mentor = request.user
+    quiz = get_object_or_404(Quiz, id=quiz_id, mentor=mentor)
+
+    if quiz.status != 'DRAFT':
+        return Response({"error": "Only draft quizzes can be published."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 1. Grab the edited questions array from the Flutter payload
+    edited_questions = request.data.get('questions', [])
+
+    # 2. Loop through and forcefully update the database with the mentor's edits
+    for q_data in edited_questions:
+        question_id = q_data.get('id')
+        if question_id:
+            question = QuizQuestion.objects.filter(id=question_id, quiz=quiz).first()
+            if question:
+                question.question_text = q_data.get('question_text', question.question_text)
+                question.option_a = q_data.get('option_a', question.option_a)
+                question.option_b = q_data.get('option_b', question.option_b)
+                question.option_c = q_data.get('option_c', question.option_c)
+                question.option_d = q_data.get('option_d', question.option_d)
+                question.correct_answer = q_data.get('correct_answer', question.correct_answer)
+                question.explanation = q_data.get('explanation', question.explanation)
+                question.save()
+
+    # 3. Flip the status!
+    quiz.status = 'PUBLISHED'
+    quiz.save()
+
+    return Response({"message": "Quiz published! The student can now take it."}, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_student_quiz(request, quiz_id):
+    student = request.user
+    quiz = get_object_or_404(Quiz, id=quiz_id, student=student)
+
+    # 1. Validate state
+    if quiz.status not in ['PUBLISHED', 'FAILED']:
+        return Response({"error": "This quiz is not available to take."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 2. Check the 1-hour Cooldown Trap (UPGRADED LOGIC)
+    # We simply check if the current time is still BEFORE the saved expiration time.
+    if quiz.status == 'FAILED' and quiz.cooldown_ends_at:
+        if timezone.now() < quiz.cooldown_ends_at:
+            time_left = quiz.cooldown_ends_at - timezone.now()
+            minutes_left = (time_left.seconds // 60) + 1 # +1 ensures we don't say "0 minutes" for 45 seconds
+            return Response({
+                "error": f"You must review your mistakes. Try again in {minutes_left} minutes."
+            }, status=status.HTTP_403_FORBIDDEN)
+
+    # 3. Grade the submitted answers
+    submitted_answers = request.data.get('answers', request.data)
+    quiz.last_submitted_answers = submitted_answers
+    quiz.save()
+    questions = quiz.questions.all()
+    
+    quiz_results = []
+    has_failed = False
+
+    for question in questions:
+        student_answer = submitted_answers.get(str(question.id))
+        is_correct = (student_answer == question.correct_answer)
+        
+        if not is_correct:
+            has_failed = True
+            
+        quiz_results.append({
+            "question_id": question.id,
+            "student_answer": student_answer,
+            "correct_answer": question.correct_answer,
+            "is_correct": is_correct,
+            "explanation": question.explanation
+        })
+
+    # 4. Process the Final Grade (UPGRADED LOGIC)
+    if has_failed:
+        quiz.status = 'FAILED'
+        # Set the exact timestamp for 1 hour from right now!
+        quiz.cooldown_ends_at = timezone.now() + timedelta(hours=1)
+        quiz.save()
+        
+        return Response({
+            "status": "FAILED",
+            "message": "You did not score 100%. Review the explanations below and try again in 1 hour.",
+            "results": quiz_results 
+        }, status=status.HTTP_200_OK)
+    
+    else:
+        quiz.status = 'PASSED'
+        # Clear the cooldown timer completely just to be safe
+        quiz.cooldown_ends_at = None 
+        quiz.save()
+        
+        return Response({
+            "status": "PASSED",
+            "message": "Perfect score! Your mentor has been notified to review and unlock your account.",
+            "results": quiz_results 
+        }, status=status.HTTP_200_OK)
+    
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def unlock_student_account(request, quiz_id):
+    mentor = request.user
+    quiz = get_object_or_404(Quiz, id=quiz_id, mentor=mentor)
+
+    if quiz.status != 'PASSED':
+        return Response({"error": "Student must pass the quiz before you can unlock them."}, status=status.HTTP_400_BAD_REQUEST)
+
+    student = quiz.student
+
+    # 1. Lift the trading ban using your CORRECT model fields!
+    student.is_trade_locked = False
+    student.trade_lock_reason = ''
+    student.discipline_drop_streak = 0
+    student.discipline_score = min(100, student.discipline_score + 2) # Reward for passing!
+    student.save()
+
+    # 2. Find their pending TradeUnlockRequest and mark it as APPROVED
+    # This ensures the request card disappears from the Mentor's dashboard
+    pending_request = TradeUnlockRequest.objects.filter(student=student, status='PENDING').first()
+    if pending_request:
+        pending_request.status = 'APPROVED'
+        pending_request.mentor_comment = "Student passed the disciplinary quiz. Account unlocked."
+        pending_request.save()
+
+    # 3. Archive the quiz
+    quiz.status = 'ARCHIVED' 
+    quiz.save()
+
+    return Response({"message": f"{student.username} has been successfully unlocked!"}, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_pending_quiz(request):
+    """Fetches the latest published or failed quiz for the student."""
+    student = request.user
+    
+    # Look for a quiz they need to take or retake
+    quiz = Quiz.objects.filter(student=student, status__in=['PUBLISHED', 'FAILED']).order_by('-created_at').first()
+    
+    if not quiz:
+        return Response({"message": "No pending quizzes."}, status=status.HTTP_404_NOT_FOUND)
+        
+    # Serialize the questions (without the correct answers/explanations to prevent cheating!)
+    questions_data = []
+    for q in quiz.questions.all():
+        questions_data.append({
+            'id': q.id,
+            'question_text': q.question_text,
+            'option_a': q.option_a,
+            'option_b': q.option_b,
+            'option_c': q.option_c,
+            'option_d': q.option_d,
+        })
+        
+    return Response({
+        'quiz_id': quiz.id,
+        'status': quiz.status,
+        'questions': questions_data
+    }, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_mentor_quizzes(request):
+    """Fetches all active quizzes assigned by this mentor."""
+    mentor = request.user
+    if mentor.role != 'MENTOR':
+        return Response({"error": "Unauthorized"}, status=403)
+        
+    # We exclude ARCHIVED so the dashboard stays clean!
+    quizzes = Quiz.objects.filter(mentor=mentor).exclude(status__in=['DRAFT', 'ARCHIVED']).order_by('-created_at')
+    
+    data = []
+    for q in quizzes:
+        data.append({
+            'id': q.id,
+            'student_name': q.student.username,
+            'status': q.status,
+            'created_at': q.created_at.isoformat()
+        })
+        
+    return Response(data, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_student_quizzes(request):
+    """Fetches all non-draft quizzes for the student's history hub."""
+    student = request.user
+    # Fetch all quizzes except those still being drafted by the mentor
+    quizzes = Quiz.objects.filter(student=student).exclude(status='DRAFT').order_by('-created_at')
+    
+    data = []
+    for q in quizzes:
+        data.append({
+            'id': q.id,
+            'mentor_name': q.mentor.username,
+            'status': q.status,
+            'created_at': q.created_at.isoformat(),
+            'cooldown_ends_at': q.cooldown_ends_at.isoformat() if q.cooldown_ends_at else None
+        })
+        
+    return Response(data, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_student_quiz_detail(request, quiz_id):
+    """Fetches a specific quiz and reveals answers ONLY if it is in history mode."""
+    student = request.user
+    quiz = get_object_or_404(Quiz, id=quiz_id, student=student)
+    
+    questions_data = []
+    # Only expose the correct answers and explanations if the quiz is fully completed
+    show_answers = quiz.status in ['PASSED', 'ARCHIVED']
+    
+    for q in quiz.questions.all():
+        q_data = {
+            'id': q.id,
+            'question_text': q.question_text,
+            'option_a': q.option_a,
+            'option_b': q.option_b,
+            'option_c': q.option_c,
+            'option_d': q.option_d,
+            'correct_answer': q.correct_answer, 
+            'explanation': q.explanation
+        }
+        questions_data.append(q_data)
+        
+    return Response({
+        'quiz_id': quiz.id,
+        'status': quiz.status,
+        'cooldown_ends_at': quiz.cooldown_ends_at.isoformat() if quiz.cooldown_ends_at else None,
+        # NEW: Send the snapshot back to Flutter!
+        'last_submitted_answers': quiz.last_submitted_answers or {},
+        'questions': questions_data
+    }, status=status.HTTP_200_OK)

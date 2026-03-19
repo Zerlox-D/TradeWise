@@ -20,11 +20,34 @@ class _TradeScreenState extends State<TradeScreen> {
   // A curated list of popular NSE stocks/ETFs
   List<dynamic> _availableAssets = [];
   bool _isLoadingAssets = true;
+  bool _isTradeLocked = false;
+  String _tradeLockReason = '';
+  bool _hasActiveMentor = false;
+  bool _hasPendingUnlockRequest = false;
+  bool _isRequestingUnlock = false;
 
   @override
   void initState() {
     super.initState();
     _loadAssets();
+    _loadTradeLockState();
+  }
+
+  Future<void> _loadTradeLockState() async {
+    try {
+      final profile = await ApiService.getUserProfile();
+      if (!mounted) return;
+
+      setState(() {
+        _isTradeLocked = profile['is_trade_locked'] == true;
+        _tradeLockReason = (profile['trade_lock_reason'] ?? '').toString();
+        _hasActiveMentor = profile['has_active_mentor'] == true;
+        _hasPendingUnlockRequest =
+            profile['has_pending_unlock_request'] == true;
+      });
+    } catch (e) {
+      // Ignore temporary profile fetch failures here.
+    }
   }
 
   Future<void> _loadAssets() async {
@@ -106,8 +129,17 @@ class _TradeScreenState extends State<TradeScreen> {
   }
 
   void _executeTrade() async {
+    if (_isTradeLocked) {
+      _showTradeLockDialog();
+      return;
+    }
+
     if (_selectedSymbol == null || _selectedGoalId == null) {
       _showError("Please select an asset and a linked goal.");
+      return;
+    }
+    if (_aiRiskData == null) {
+      _showError("Risk analysis is still loading. Please wait a moment.");
       return;
     }
     int qty = int.tryParse(_quantityController.text) ?? 0;
@@ -321,6 +353,115 @@ class _TradeScreenState extends State<TradeScreen> {
     );
   }
 
+  Future<void> _showTradeLockDialog() async {
+    await _loadTradeLockState();
+    if (!mounted) return;
+    if (!_isTradeLocked) {
+      _executeTrade();
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF151A30),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            "Trading Locked",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _tradeLockReason.isNotEmpty
+                    ? "$_tradeLockReason Please request your mentor to review and unlock your account."
+                    : "Your account is temporarily locked due to repeated discipline-score drops.",
+                style: const TextStyle(color: Colors.white70, height: 1.4),
+              ),
+              const SizedBox(height: 10),
+              if (!_hasActiveMentor)
+                const Text(
+                  "Connect with a mentor to request unlock access.",
+                  style: TextStyle(color: Colors.orangeAccent, fontSize: 12),
+                )
+              else if (_hasPendingUnlockRequest)
+                const Text(
+                  "Unlock request already sent. Waiting for mentor response.",
+                  style: TextStyle(color: Colors.orangeAccent, fontSize: 12),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "Close",
+                style: TextStyle(color: Colors.white70),
+              ),
+            ),
+            ElevatedButton(
+              onPressed:
+                  (!_hasActiveMentor ||
+                      _hasPendingUnlockRequest ||
+                      _isRequestingUnlock)
+                  ? null
+                  : () async {
+                      setDialogState(() => _isRequestingUnlock = true);
+                      final error = await ApiService.requestTradeUnlock();
+                      if (!mounted) return;
+                      setDialogState(() => _isRequestingUnlock = false);
+
+                      if (error == null) {
+                        setState(() => _hasPendingUnlockRequest = true);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              "Unlock request sent to your mentor.",
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(error),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00E676),
+                disabledBackgroundColor: const Color(0xFF4C5078),
+              ),
+              child: _isRequestingUnlock
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      "Request Mentor Unlock",
+                      style: TextStyle(
+                        color: Color(0xFF0A0E21),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Color _getSymbolColor(String symbol) {
     const colors = [
       Color(0xFF5C6BC0),
@@ -369,6 +510,7 @@ class _TradeScreenState extends State<TradeScreen> {
     final Color submitTextColor = isBuy
         ? const Color(0xFF0A0E21)
         : Colors.white;
+    final bool showLockedStyle = _isTradeLocked;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E21),
@@ -890,7 +1032,7 @@ class _TradeScreenState extends State<TradeScreen> {
                         decoration: InputDecoration(
                           contentPadding: const EdgeInsets.all(16),
                           border: InputBorder.none,
-                          hintText: "Explain your rationale to your mentor...",
+                          hintText: "Explain your rationale...",
                           hintStyle: TextStyle(
                             color: Colors.grey[700],
                             fontSize: 13,
@@ -998,7 +1140,12 @@ class _TradeScreenState extends State<TradeScreen> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(14),
                         gradient: LinearGradient(
-                          colors: isBuy
+                          colors: showLockedStyle
+                              ? [
+                                  const Color(0xFF4C5078),
+                                  const Color(0xFF343858),
+                                ]
+                              : isBuy
                               ? [
                                   const Color(0xFF00E676),
                                   const Color(0xFF00C853),
@@ -1016,7 +1163,15 @@ class _TradeScreenState extends State<TradeScreen> {
                         ],
                       ),
                       child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _executeTrade,
+                        onPressed: _isSubmitting
+                            ? null
+                            : () {
+                                if (_isTradeLocked) {
+                                  _showTradeLockDialog();
+                                  return;
+                                }
+                                _executeTrade();
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
@@ -1030,11 +1185,15 @@ class _TradeScreenState extends State<TradeScreen> {
                                 strokeWidth: 2,
                               )
                             : Text(
-                                "SUBMIT $_transactionType ORDER",
+                                _isTradeLocked
+                                    ? "TRADING LOCKED"
+                                    : "SUBMIT $_transactionType ORDER",
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
-                                  color: submitTextColor,
+                                  color: _isTradeLocked
+                                      ? Colors.white
+                                      : submitTextColor,
                                   letterSpacing: 0.6,
                                 ),
                               ),

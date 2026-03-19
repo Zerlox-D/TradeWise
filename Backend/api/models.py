@@ -1,7 +1,7 @@
-from django.db import models
-
+from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+
 
 class User(AbstractUser):
     """
@@ -20,6 +20,9 @@ class User(AbstractUser):
     # Gamification & Metrics (The "Behavior-First" logic)
     discipline_score = models.IntegerField(default=50)  # Starts at 50/100
     risk_profile = models.CharField(max_length=20, default='MODERATE')
+    discipline_drop_streak = models.IntegerField(default=0)
+    is_trade_locked = models.BooleanField(default=False)
+    trade_lock_reason = models.TextField(blank=True, default='')
 
     date_of_birth = models.DateField(null=True, blank=True)
 
@@ -27,6 +30,7 @@ class User(AbstractUser):
     
     def __str__(self):
         return self.username
+
 
 class Goal(models.Model):
     """
@@ -41,6 +45,7 @@ class Goal(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.user.username})"
+
 
 class TradeRequest(models.Model):
     """
@@ -87,6 +92,7 @@ class TradeRequest(models.Model):
     def __str__(self):
         return f"{self.transaction_type} {self.symbol} - {self.status}"
     
+
 class MentorLink(models.Model):
     # Matches "student_id" and "mentor_id" from report
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='mentorship_requests')
@@ -112,7 +118,30 @@ class MentorLink(models.Model):
 
     def __str__(self):
         return f"{self.student.username} -> {self.mentor.username} ({self.status})"
+
+
+class TradeUnlockRequest(models.Model):
+    STATUS_CHOICES = (
+        ('PENDING', 'Pending'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
+    )
+
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='trade_unlock_requests')
+    mentor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='trade_unlock_reviews')
+    requested_reason = models.TextField(blank=True, default='')
+    mentor_comment = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDING')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Unlock request: {self.student.username} -> {self.mentor.username} ({self.status})"
     
+
 class Holding(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='holdings')
     symbol = models.CharField(max_length=20)
@@ -125,6 +154,7 @@ class Holding(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.symbol} ({self.total_quantity})"
 
+
 class Asset(models.Model):
     symbol = models.CharField(max_length=20, unique=True)
     name = models.CharField(max_length=100)
@@ -132,3 +162,51 @@ class Asset(models.Model):
 
     def __str__(self):
         return f"{self.symbol} - {self.name}"
+
+
+class Quiz(models.Model):
+    STATUS_CHOICES = [
+        ('DRAFT', 'Draft'),             # AI generated it, Mentor is reviewing/editing
+        ('PUBLISHED', 'Published'),     # Mentor approved it, Student is locked and must take it
+        ('PASSED', 'Passed'),           # Student scored 100%, waiting for Mentor to unlock them
+        ('FAILED', 'Failed'),           # Student failed, sitting in the 1-hour cooldown
+        ('ARCHIVED', 'Archived'),       # Old quizzes we want to keep for records but not show in the UI
+    ]
+    
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='quizzes_taken', on_delete=models.CASCADE)
+    mentor = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='quizzes_assigned', on_delete=models.CASCADE)
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # We use this to enforce the 1-hour cooldown hurdle we discussed!
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+    last_submitted_answers = models.JSONField(null=True, blank=True, default=dict)
+    cooldown_ends_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Quiz for {self.student.username} by {self.mentor.username} - {self.status}"
+
+
+class QuizQuestion(models.Model):
+    ANSWER_CHOICES = [
+        ('A', 'A'), ('B', 'B'), ('C', 'C'), ('D', 'D')
+    ]
+    
+    # related_name='questions' allows us to easily fetch all questions for a quiz using quiz.questions.all()
+    quiz = models.ForeignKey(Quiz, related_name='questions', on_delete=models.CASCADE)
+    
+    question_text = models.TextField()
+    option_a = models.CharField(max_length=255)
+    option_b = models.CharField(max_length=255)
+    option_c = models.CharField(max_length=255)
+    option_d = models.CharField(max_length=255)
+    
+    correct_answer = models.CharField(max_length=1, choices=ANSWER_CHOICES)
+    
+    # Crucial for the learning loop: shown to the student ONLY if they fail
+    explanation = models.TextField() 
+
+    def __str__(self):
+        return f"Question for Quiz {self.quiz.id}"

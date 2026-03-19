@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import '../api_service.dart';
+import 'mentor_quiz_hub.dart';
 import 'student_dashboard.dart';
 import 'mentor_dashboard.dart';
+import 'student_quiz_hub.dart';
+import 'student_quiz_screen.dart';
 import 'trade_screen.dart';
 import 'portfolio_screen.dart';
 import 'home_screen.dart';
@@ -20,6 +23,9 @@ class _MainLayoutState extends State<MainLayout> {
   Map<String, dynamic>? _userProfile;
   List<dynamic> _goals = [];
   bool _isLoading = true;
+  bool _hasPendingQuiz = false;
+  bool _hasMentorNotifications = false;
+  bool _hasPassedQuizzes = false;
 
   @override
   void initState() {
@@ -31,11 +37,33 @@ class _MainLayoutState extends State<MainLayout> {
     try {
       final profile = await ApiService.getUserProfile();
       final goals = await ApiService.getGoals();
+      bool hasQuiz = false;
+      bool hasMentorAlerts = false;
+      bool passedQuizzesAlert = false;
+      
+      if (profile['role'] == 'MENTOR') {
+          // Read the new flag we just added to Django!
+          hasMentorAlerts = profile['has_pending_mentor_actions'] ?? false;
+          passedQuizzesAlert = profile['has_passed_quizzes'] ?? false;
+
+          print("DEBUG: Django sent has_passed_quizzes = ${profile['has_passed_quizzes']}");
+
+        } else {
+          // Student logic
+          final quizData = await ApiService.getStudentPendingQuiz();
+          if (quizData != null && quizData['quiz_id'] != null) {
+            hasQuiz = true;
+          }
+        }
+
       if (mounted) {
         setState(() {
           _userProfile = profile;
           _goals = goals;
           _isLoading = false;
+          _hasPendingQuiz = hasQuiz;
+          _hasMentorNotifications = hasMentorAlerts;
+          _hasPassedQuizzes = passedQuizzesAlert;
         });
       }
     } catch (e) {
@@ -73,10 +101,15 @@ class _MainLayoutState extends State<MainLayout> {
         ? const MentorDashboard()
         : const StudentDashboard();
 
+    // NEW logic: The Quiz/Assessment Tab
+    Widget assessmentScreen = _userProfile?['role'] == 'MENTOR'
+        ? MentorQuizHub() 
+        : StudentQuizHub();
+
     final List<Widget> screens = [
       const HomeScreen(),
       const PortfolioScreen(),
-      dashboardScreen,
+      assessmentScreen,
       dashboardScreen,
     ];
 
@@ -152,10 +185,12 @@ class _MainLayoutState extends State<MainLayout> {
             const SizedBox(width: 72),
             Expanded(
               child: _buildNavItem(
-                icon: Icons.dashboard_outlined,
-                activeIcon: Icons.dashboard,
-                label: 'Dashboard',
+                icon: Icons.assignment_outlined, // Changed Icon!
+                activeIcon: Icons.assignment, // Changed Icon!
+                label: 'Assessments', // Changed Label!
                 index: 2,
+                showBadge: _userProfile?['role'] != 'MENTOR' && _hasPendingQuiz || 
+                           (_userProfile?['role'] == 'MENTOR' && _hasPassedQuizzes),
               ),
             ),
             Expanded(
@@ -164,6 +199,7 @@ class _MainLayoutState extends State<MainLayout> {
                 activeIcon: Icons.person,
                 label: 'Profile',
                 index: 3,
+                showBadge: _userProfile?['role'] == 'MENTOR' && _hasMentorNotifications,
               ),
             ),
           ],
@@ -177,6 +213,7 @@ class _MainLayoutState extends State<MainLayout> {
     required IconData activeIcon,
     required String label,
     required int index,
+    bool showBadge = false,
   }) {
     final bool isActive = _selectedIndex == index;
     final Color color = isActive
@@ -184,13 +221,52 @@ class _MainLayoutState extends State<MainLayout> {
         : const Color(0xFF4C5078);
 
     return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = index),
+      onTap: () {
+        setState(() {
+          _selectedIndex = index;
+          
+          // YOUR FIX: Clear the dots the moment they open the tab!
+          
+          // 1. If a Student opens the Assessment tab (Index 2), clear the dot
+          if (index == 2 && _userProfile?['role'] != 'MENTOR') {
+            _hasPendingQuiz = false;
+          }
+
+          if (index == 2 && _userProfile?['role'] == 'MENTOR') {
+            _hasPassedQuizzes = false;
+          }
+          
+          // 2. If a Mentor opens the Profile/Dashboard tab (Index 3), clear the dot
+          if (index == 3 && _userProfile?['role'] == 'MENTOR') {
+            _hasMentorNotifications = false;
+          }
+        });
+      },
       behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(isActive ? activeIcon : icon, color: color, size: 22),
+          // Use a Stack to put the red dot over the icon!
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(isActive ? activeIcon : icon, color: color, size: 22),
+              if (showBadge)
+                Positioned(
+                  top: -2,
+                  right: -2,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.redAccent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 4),
           Text(
             label,

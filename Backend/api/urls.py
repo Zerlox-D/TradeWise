@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework.authtoken.views import obtain_auth_token
-from .views import MentorLinkViewSet, MentorListView, UserViewSet, GoalViewSet, TradeRequestViewSet, RegisterView, HoldingViewSet
+from .views import MentorLinkViewSet, MentorListView, UserViewSet, GoalViewSet, TradeRequestViewSet, RegisterView, HoldingViewSet, TradeUnlockRequestViewSet
 from . import views
 
 router = DefaultRouter()
@@ -11,6 +11,7 @@ router.register(r'goals', GoalViewSet, basename='goal')
 router.register(r'trades', TradeRequestViewSet, basename='traderequest')
 router.register(r'mentor-links', MentorLinkViewSet, basename='mentor-links')
 router.register(r'holdings', views.HoldingViewSet, basename='holdings')
+router.register(r'trade-unlock-requests', TradeUnlockRequestViewSet, basename='trade-unlock-requests')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -24,4 +25,12 @@ urlpatterns = [
     path('market-overview/', views.get_market_overview, name='market-overview'),
     path('assets/', views.get_assets, name='assets'),
     path('ai-risk-assessment/', views.get_ai_risk_assessment, name='ai-risk-assessment'),
+    path('quiz/draft/<int:student_id>/', views.draft_mentor_quiz, name='draft-mentor-quiz'),
+    path('quiz/publish/<int:quiz_id>/', views.publish_mentor_quiz, name='publish_mentor_quiz'),
+    path('quiz/submit/<int:quiz_id>/', views.submit_student_quiz, name='submit_student_quiz'),
+    path('quiz/unlock/<int:quiz_id>/', views.unlock_student_account, name='unlock_student_account'),
+    path('quiz/pending/', views.get_pending_quiz, name='pending-quiz'),
+    path('quiz/mentor/', views.get_mentor_quizzes, name='mentor-quizzes'),
+    path('quiz/student/', views.get_student_quizzes, name='student-quizzes'),
+    path('quiz/student/<int:quiz_id>/', views.get_student_quiz_detail, name='student-quiz-detail'),
 ]

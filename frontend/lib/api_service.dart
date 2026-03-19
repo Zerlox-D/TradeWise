@@ -12,7 +12,7 @@ class ApiService {
 
   static Future<bool> login(String username, String password) async {
     final url = Uri.parse("${AppConstants.rootUrl}/api-token-auth/");
-  
+
     try {
       // We use standard http.post here so we don't attach old tokens
       final response = await http.post(
@@ -24,16 +24,16 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         String token = data['token'];
-        
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(AppConstants.tokenKey, token);
-        
+
         print("Login successful! Token saved.");
-        return true; 
+        return true;
       } else {
         print("Login failed. Status Code: ${response.statusCode}");
         print("Django Error Details: ${response.body}");
-        return false; 
+        return false;
       }
     } catch (e) {
       print("Network or Server Error: $e");
@@ -41,9 +41,15 @@ class ApiService {
     }
   }
 
-  static Future<bool> register(String username, String email, String password, String dob, String role) async {
+  static Future<bool> register(
+    String username,
+    String email,
+    String password,
+    String dob,
+    String role,
+  ) async {
     final url = Uri.parse("${AppConstants.baseUrl}/register/");
-    
+
     try {
       final response = await http.post(
         url,
@@ -57,7 +63,7 @@ class ApiService {
         }),
       );
 
-      return response.statusCode == 201; 
+      return response.statusCode == 201;
     } catch (e) {
       print("Register Error: $e");
       return false;
@@ -68,8 +74,8 @@ class ApiService {
 
   static Future<List<dynamic>> getGoals() async {
     final url = Uri.parse("${AppConstants.baseUrl}/goals/");
-    
-    // Look how clean this is now! 
+
+    // Look how clean this is now!
     final response = await _client.get(url);
 
     if (response.statusCode == 200) {
@@ -80,7 +86,7 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>?> searchMentor(String code) async {
-    final url = Uri.parse("${AppConstants.baseUrl}/mentors/?code=$code"); 
+    final url = Uri.parse("${AppConstants.baseUrl}/mentors/?code=$code");
 
     try {
       final response = await _client.get(url);
@@ -88,7 +94,7 @@ class ApiService {
       if (response.statusCode == 200) {
         List<dynamic> results = jsonDecode(response.body);
         if (results.isNotEmpty) {
-          return results[0]; 
+          return results[0];
         }
       }
     } catch (e) {
@@ -104,7 +110,7 @@ class ApiService {
     try {
       final response = await _client.post(
         url,
-        body: jsonEncode({'mentor': mentorId}), 
+        body: jsonEncode({'mentor': mentorId}),
       );
 
       if (response.statusCode == 201) {
@@ -115,7 +121,7 @@ class ApiService {
         if (errorData.containsKey('error')) {
           return errorData['error']; // e.g., "You already have a pending or active mentor connection."
         }
-        return "Failed to send request. Please try again."; 
+        return "Failed to send request. Please try again.";
       }
     } catch (e) {
       print("Request Error: $e");
@@ -125,7 +131,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>> getUserProfile() async {
     final url = Uri.parse('${AppConstants.baseUrl}/profile/me/');
-    
+
     final response = await _client.get(url);
 
     if (response.statusCode == 200) {
@@ -155,8 +161,10 @@ class ApiService {
   // MENTOR ACTION: Accept or Reject a request
   static Future<bool> respondToRequest(int linkId, String action) async {
     // action should be either 'accept' or 'reject'
-    final url = Uri.parse("${AppConstants.baseUrl}/mentor-links/$linkId/respond/");
-    
+    final url = Uri.parse(
+      "${AppConstants.baseUrl}/mentor-links/$linkId/respond/",
+    );
+
     try {
       final response = await _client.post(
         url,
@@ -172,17 +180,23 @@ class ApiService {
   static Future<void> logout() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('token'); // Replace 'token' with whatever key you used to save it
-      
+      await prefs.remove(
+        'token',
+      ); // Replace 'token' with whatever key you used to save it
+
       // Optional: If you attached the token to your HTTP client headers, clear them out
-      // _client.options.headers.remove('Authorization'); 
+      // _client.options.headers.remove('Authorization');
     } catch (e) {
       print("Logout Error: $e");
     }
   }
 
   // --- ADD THIS TO api_service.dart ---
-  static Future<bool> addGoal(String title, double targetAmount, String deadline) async {
+  static Future<bool> addGoal(
+    String title,
+    double targetAmount,
+    String deadline,
+  ) async {
     final url = Uri.parse("${AppConstants.baseUrl}/goals/");
     try {
       final response = await _client.post(
@@ -194,7 +208,7 @@ class ApiService {
         }),
       );
       // 201 Created is the standard Django success response for POST
-      return response.statusCode == 201; 
+      return response.statusCode == 201;
     } catch (e) {
       print("Add Goal Error: $e");
       return false;
@@ -204,10 +218,16 @@ class ApiService {
   // --- ADD THESE TO api_service.dart ---
 
   // Update an existing goal
-  static Future<bool> updateGoal(int id, String title, double targetAmount, String deadline) async {
+  static Future<bool> updateGoal(
+    int id,
+    String title,
+    double targetAmount,
+    String deadline,
+  ) async {
     final url = Uri.parse("${AppConstants.baseUrl}/goals/$id/");
     try {
-      final response = await _client.patch( // Use patch or put depending on your Django setup
+      final response = await _client.patch(
+        // Use patch or put depending on your Django setup
         url,
         body: jsonEncode({
           'name': title,
@@ -215,7 +235,7 @@ class ApiService {
           'deadline_date': deadline,
         }),
       );
-      return response.statusCode == 200 || response.statusCode == 201; 
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
       print("Update Goal Error: $e");
       return false;
@@ -227,7 +247,8 @@ class ApiService {
     final url = Uri.parse("${AppConstants.baseUrl}/goals/$id/");
     try {
       final response = await _client.delete(url);
-      return response.statusCode == 204; // 204 No Content is standard for successful deletions
+      return response.statusCode ==
+          204; // 204 No Content is standard for successful deletions
     } catch (e) {
       print("Delete Goal Error: $e");
       return false;
@@ -270,7 +291,7 @@ class ApiService {
           'risk_level': riskLevel,
         }),
       );
-      
+
       if (response.statusCode == 201) {
         return {'success': true, 'data': jsonDecode(response.body)};
       } else {
@@ -324,8 +345,61 @@ class ApiService {
     return [];
   }
 
+  static Future<List<dynamic>> getTradeUnlockRequests() async {
+    final url = Uri.parse("${AppConstants.baseUrl}/trade-unlock-requests/");
+    try {
+      final response = await _client.get(url);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      print("Fetch Unlock Requests Error: $e");
+    }
+    return [];
+  }
+
+  static Future<String?> requestTradeUnlock() async {
+    final url = Uri.parse("${AppConstants.baseUrl}/trade-unlock-requests/");
+    try {
+      final response = await _client.post(url, body: jsonEncode({}));
+      if (response.statusCode == 201) {
+        return null;
+      }
+
+      final body = jsonDecode(response.body);
+      return body['error'] ?? 'Unable to submit unlock request.';
+    } catch (e) {
+      print("Request Unlock Error: $e");
+      return 'Network error. Please try again.';
+    }
+  }
+
+  static Future<bool> respondToTradeUnlockRequest(
+    int requestId,
+    String action, {
+    String comment = "",
+  }) async {
+    final url = Uri.parse(
+      "${AppConstants.baseUrl}/trade-unlock-requests/$requestId/respond/",
+    );
+    try {
+      final response = await _client.post(
+        url,
+        body: jsonEncode({'action': action, 'comment': comment}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Respond Unlock Request Error: $e");
+      return false;
+    }
+  }
+
   // 2. Submit the mentor's decision on a high-risk trade
-  static Future<bool> respondToTrade(int tradeId, String action, {String comment = ""}) async {
+  static Future<bool> respondToTrade(
+    int tradeId,
+    String action, {
+    String comment = "",
+  }) async {
     final url = Uri.parse("${AppConstants.baseUrl}/trades/$tradeId/respond/");
     try {
       final response = await _client.post(
@@ -335,7 +409,7 @@ class ApiService {
           'comment': comment,
         }),
       );
-      return response.statusCode == 200; 
+      return response.statusCode == 200;
     } catch (e) {
       print("Trade Approval Error: $e");
       return false;
@@ -343,8 +417,12 @@ class ApiService {
   }
 
   // Fetch a student's portfolio (Mentors only)
-  static Future<Map<String, dynamic>?> getStudentPortfolio(int studentId) async {
-    final url = Uri.parse("${AppConstants.baseUrl}/student-portfolio/$studentId/");
+  static Future<Map<String, dynamic>?> getStudentPortfolio(
+    int studentId,
+  ) async {
+    final url = Uri.parse(
+      "${AppConstants.baseUrl}/student-portfolio/$studentId/",
+    );
     try {
       final response = await _client.get(url);
       if (response.statusCode == 200) {
@@ -385,8 +463,10 @@ class ApiService {
   }
 
   // Fetch dynamic AI Risk Assessment from Gemini
-  static Future<Map<String, dynamic>?> getAIRiskAssessment(String symbol) async {
-    final url = Uri.parse("${AppConstants.baseUrl}/ai-risk-assessment/"); 
+  static Future<Map<String, dynamic>?> getAIRiskAssessment(
+    String symbol,
+  ) async {
+    final url = Uri.parse("${AppConstants.baseUrl}/ai-risk-assessment/");
     try {
       final response = await _client.post(
         url,
@@ -402,5 +482,175 @@ class ApiService {
       print("Network Error: $e");
     }
     return null;
+  }
+
+  // --- MENTOR QUIZ ENGINE ---
+
+  static Future<Map<String, dynamic>?> draftMentorQuiz(int studentId) async {
+    final url = Uri.parse("${AppConstants.baseUrl}/quiz/draft/$studentId/");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConstants.tokenKey);
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token $token', // Use 'Bearer $token' if you are using JWT!
+        },
+      );
+
+      if (response.statusCode == 201) {
+        // Successfully drafted! Returns the quiz_id and the 5 questions.
+        return jsonDecode(response.body); 
+      } else {
+        print("Failed to draft AI Quiz. Status: ${response.statusCode}");
+        print("Error Details: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      print("Network Error Drafting Quiz: $e");
+      return null;
+    }
+  }
+
+  static Future<bool> publishMentorQuiz(int quizId, List<dynamic> questions) async {
+    final url = Uri.parse("${AppConstants.baseUrl}/quiz/publish/$quizId/");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConstants.tokenKey);
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token $token',
+        },
+        body: jsonEncode({
+          'questions': questions, // Send the edited array straight back to Django
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print("Quiz published successfully!");
+        return true;
+      } else {
+        print("Failed to publish Quiz. Status: ${response.statusCode}");
+        print("Error Details: ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      print("Network Error Publishing Quiz: $e");
+      return false;
+    }
+  }
+
+  // --- STUDENT QUIZ ENGINE ---
+
+  static Future<Map<String, dynamic>?> getStudentPendingQuiz() async {
+    final url = Uri.parse("${AppConstants.baseUrl}/quiz/pending/");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConstants.tokenKey);
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token $token', 
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body); 
+      }
+      return null;
+    } catch (e) {
+      print("Network Error fetching quiz: $e");
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> submitStudentQuiz(int quizId, Map<String, String> answers) async {
+    final url = Uri.parse("${AppConstants.baseUrl}/quiz/submit/$quizId/");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConstants.tokenKey);
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token $token',
+        },
+        body: jsonEncode({'answers': answers}),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body); // Returns the PASSED/FAILED status and results array!
+      } else {
+        print("Failed to submit quiz. Status: ${response.statusCode}");
+        print("Error Details: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      print("Network Error submitting quiz: $e");
+      return null;
+    }
+  }
+
+  static Future<List<dynamic>?> getMentorQuizzes() async {
+    final url = Uri.parse("${AppConstants.baseUrl}/quiz/mentor/");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConstants.tokenKey);
+
+    try {
+      final response = await http.get(url, headers: {'Authorization': 'Token $token'});
+      if (response.statusCode == 200) return jsonDecode(response.body);
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<bool> unlockStudentAccount(int quizId) async {
+    final url = Uri.parse("${AppConstants.baseUrl}/quiz/unlock/$quizId/");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConstants.tokenKey);
+
+    try {
+      final response = await http.post(url, headers: {'Authorization': 'Token $token'});
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static Future<List<dynamic>?> getStudentQuizzes() async {
+    final url = Uri.parse("${AppConstants.baseUrl}/quiz/student/");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConstants.tokenKey);
+
+    try {
+      final response = await http.get(url, headers: {'Authorization': 'Token $token'});
+      if (response.statusCode == 200) return jsonDecode(response.body);
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getStudentQuizDetail(int quizId) async {
+    final url = Uri.parse("${AppConstants.baseUrl}/quiz/student/$quizId/");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConstants.tokenKey);
+
+    try {
+      final response = await http.get(url, headers: {'Authorization': 'Token $token'});
+      if (response.statusCode == 200) return jsonDecode(response.body);
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 }

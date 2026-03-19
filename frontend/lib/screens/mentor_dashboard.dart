@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api_service.dart';
 import 'login_screen.dart';
+import 'mentor_quiz_draft_screen.dart';
 import 'student_portfolio_screen.dart';
 import '../widgets/dashboard_header_analytics.dart';
 
@@ -17,6 +18,8 @@ class _MentorDashboardState extends State<MentorDashboard> {
   List<dynamic> _goals = [];
   List<dynamic> _holdings = [];
   List<dynamic> _trades = [];
+  List<dynamic> _unlockRequests = [];
+  List<dynamic> _activeQuizzes = [];
   Map<String, double> _livePrices = {};
   bool _isLoading = true;
 
@@ -35,6 +38,8 @@ class _MentorDashboardState extends State<MentorDashboard> {
       final goals = await ApiService.getGoals();
       final holdings = await ApiService.getHoldings();
       final trades = await ApiService.getTrades();
+      final unlockRequests = await ApiService.getTradeUnlockRequests();
+      final activeQuizzes = await ApiService.getMentorQuizzes()??[];
 
       if (mounted) {
         setState(() {
@@ -43,6 +48,8 @@ class _MentorDashboardState extends State<MentorDashboard> {
           _holdings = holdings;
           _goals = goals;
           _trades = trades;
+          _unlockRequests = unlockRequests;
+          _activeQuizzes = activeQuizzes;
           _isLoading = false;
         });
 
@@ -51,6 +58,37 @@ class _MentorDashboardState extends State<MentorDashboard> {
     } catch (e) {
       print("Dashboard Error: $e");
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _handleUnlockRequestAction(int requestId, String action) async {
+    final bool success = await ApiService.respondToTradeUnlockRequest(
+      requestId,
+      action,
+      comment: action == 'approve'
+          ? 'Unlock approved by mentor.'
+          : 'Mentor kept the lock active.',
+    );
+
+    if (success) {
+      _loadDashboardData();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            action == 'approve'
+                ? 'Trading unlocked for student.'
+                : 'Student remains locked.',
+          ),
+          backgroundColor: action == 'approve' ? Colors.green : Colors.orange,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to process unlock request.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 
@@ -92,7 +130,11 @@ class _MentorDashboardState extends State<MentorDashboard> {
   }
 
   // Action for mentors to approve/reject high-risk trades
-  void _handleTradeAction(int tradeId, String action, String comment) async {
+  Future<void> _handleTradeAction(
+    int tradeId,
+    String action,
+    String comment,
+  ) async {
     // You can optionally show a dialog here to capture a 'comment', but we'll default to empty for now
     bool success = await ApiService.respondToTrade(
       tradeId,
@@ -124,70 +166,115 @@ class _MentorDashboardState extends State<MentorDashboard> {
   // --- ADD THIS NEW DIALOG FUNCTION ---
   void _showCommentDialog(int tradeId, String action) {
     final _commentController = TextEditingController();
-    
+    bool _isLoading = false;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1D1E33),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          action == 'approve' ? "Approve Trade" : "Reject Trade",
-          style: TextStyle(
-            color: action == 'approve' ? Colors.greenAccent : Colors.redAccent,
-            fontWeight: FontWeight.bold
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) => StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) => AlertDialog(
+          backgroundColor: const Color(0xFF1D1E33),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              action == 'approve' 
-                ? "Add an optional note for the student:" 
-                : "Please provide a reason for rejecting this trade:",
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+          title: Text(
+            action == 'approve' ? "Approve Trade" : "Reject Trade",
+            style: TextStyle(
+              color: action == 'approve'
+                  ? Colors.greenAccent
+                  : Colors.redAccent,
+              fontWeight: FontWeight.bold,
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _commentController,
-              maxLines: 3,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: const Color(0xFF0A0E21),
-                hintText: "Type your feedback here...",
-                hintStyle: TextStyle(color: Colors.grey[600]),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                action == 'approve'
+                    ? "Add an optional note for the student:"
+                    : "Please provide a reason for rejecting this trade:",
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _commentController,
+                maxLines: 3,
+                enabled: !_isLoading,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xFF0A0E21),
+                  hintText: "Type your feedback here...",
+                  hintStyle: TextStyle(color: Colors.grey[600]),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: _isLoading ? null : () => Navigator.pop(dialogContext),
+              child: Text(
+                "Cancel",
+                style: TextStyle(
+                  color: _isLoading ? Colors.grey[600] : Colors.grey,
                 ),
               ),
             ),
+            ElevatedButton(
+              onPressed: _isLoading
+                  ? null
+                  : () async {
+                      final comment = _commentController.text.trim();
+                      if (action == 'reject' && comment.isEmpty) {
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              "Please provide a reason for rejection.",
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      setState(() => _isLoading = true);
+
+                      await _handleTradeAction(tradeId, action, comment);
+
+                      if (mounted) {
+                        Navigator.pop(dialogContext);
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _isLoading
+                    ? Colors.grey
+                    : (action == 'approve'
+                          ? Colors.green[600]
+                          : Colors.red[600]),
+              ),
+              child: _isLoading
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      "Submit",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final comment = _commentController.text.trim();
-              if (action == 'reject' && comment.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Please provide a reason for rejection.")),
-                );
-                return; // Stop them from submitting an empty rejection
-              }
-              Navigator.pop(context);
-              _handleTradeAction(tradeId, action, comment); // Pass the comment to the API!
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: action == 'approve' ? Colors.green[600] : Colors.red[600],
-            ),
-            child: const Text("Submit", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
       ),
     );
   }
@@ -267,7 +354,7 @@ class _MentorDashboardState extends State<MentorDashboard> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E21),
-      
+
       appBar: AppBar(
         title: const Text(
           "Dashboard",
@@ -353,6 +440,9 @@ class _MentorDashboardState extends State<MentorDashboard> {
         .toList();
     final activeStudents = _mentorLinks
         .where((link) => link['status'] == 'ACCEPTED')
+        .toList();
+    final pendingUnlockRequests = _unlockRequests
+        .where((req) => req['status'] == 'PENDING')
         .toList();
 
     return Column(
@@ -477,6 +567,107 @@ class _MentorDashboardState extends State<MentorDashboard> {
           const SizedBox(height: 20),
         ],
 
+        if (pendingUnlockRequests.isNotEmpty) ...[
+          Text(
+            "Trade Unlock Requests (${pendingUnlockRequests.length})",
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: pendingUnlockRequests.length,
+            itemBuilder: (context, index) {
+              final req = pendingUnlockRequests[index];
+              final bool hasActiveQuiz = _activeQuizzes.any((q) => q['student_name'] == req['student_name']);
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1D1E33),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.orange.withOpacity(0.4)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      req['student_name'] ?? 'Investor',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      req['requested_reason'] ??
+                          'Trading is locked. Student requests to unlock.',
+                      style: TextStyle(color: Colors.grey[300], fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      // 1. Center the button if a quiz is active, otherwise align right
+                      mainAxisAlignment: hasActiveQuiz 
+                          ? MainAxisAlignment.center 
+                          : MainAxisAlignment.end,
+                      children: [
+                        
+                        // 2. Hide "Keep Locked" entirely if a quiz is already in progress
+                        if (!hasActiveQuiz) ...[
+                          OutlinedButton(
+                            onPressed: () => _handleUnlockRequestAction(req['id'], 'reject'),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Colors.orangeAccent),
+                            ),
+                            child: const Text(
+                              "Keep Locked",
+                              style: TextStyle(color: Colors.orangeAccent),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                        
+                        // 3. The Draft/Active Quiz Button
+                        ElevatedButton(
+                          onPressed: hasActiveQuiz ? null : () {
+                            final int studentId = req['student_id'] ?? req['user_id'] ?? req['student'];
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => MentorQuizDraftScreen(
+                                  studentId: studentId,
+                                  studentName: req['student_name'] ?? 'Student',
+                                  requestId: req['id'], 
+                                ),
+                              ),
+                            ).then((_) => _loadDashboardData()); 
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: hasActiveQuiz ? Colors.grey[800] : Colors.blueAccent, 
+                          ),
+                          child: Text(
+                            hasActiveQuiz ? "Quiz Active" : "Draft Quiz",
+                            style: TextStyle(
+                              color: hasActiveQuiz ? Colors.grey[500] : Colors.white
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+        ],
+
         Builder(
           builder: (context) {
             final pendingTrades = _trades
@@ -549,6 +740,25 @@ class _MentorDashboardState extends State<MentorDashboard> {
                                   color: Colors.white,
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.person_outline,
+                                color: Colors.grey[400],
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                "Requested by: ${trade['username'] ?? trade['user_name'] ?? 'Student'}",
+                                style: TextStyle(
+                                  color: Colors.grey[300],
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ],

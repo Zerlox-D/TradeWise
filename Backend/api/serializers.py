@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Goal, TradeRequest, MentorLink, Holding
+from .models import User, Goal, TradeRequest, MentorLink, Holding, TradeUnlockRequest
 import datetime
 
 class UserSerializer(serializers.ModelSerializer):
@@ -88,3 +88,19 @@ class HoldingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Holding
         fields = ['id', 'symbol', 'total_quantity', 'average_price']
+
+
+class TradeUnlockRequestSerializer(serializers.ModelSerializer):
+    student_name = serializers.ReadOnlyField(source='student.username')
+    mentor_name = serializers.ReadOnlyField(source='mentor.username')
+
+    class Meta:
+        model = TradeUnlockRequest
+        fields = [
+            'id', 'student', 'mentor', 'student_name', 'mentor_name',
+            'requested_reason', 'mentor_comment', 'status', 'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'student', 'mentor', 'student_name', 'mentor_name',
+            'requested_reason', 'mentor_comment', 'status', 'created_at', 'updated_at'
+        ]
