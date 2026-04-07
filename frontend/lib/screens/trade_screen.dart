@@ -1147,8 +1147,8 @@ class _TradeScreenState extends State<TradeScreen> {
                                 ]
                               : isBuy
                               ? [
-                                  const Color(0xFF00E676),
-                                  const Color(0xFF00C853),
+                                  const Color.fromARGB(255, 6, 211, 112),
+                                  const Color.fromARGB(255, 3, 166, 71),
                                 ]
                               : [Colors.redAccent, const Color(0xFFB71C1C)],
                           begin: Alignment.centerLeft,

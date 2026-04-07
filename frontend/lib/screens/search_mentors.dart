@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../api_service.dart';
-import '../widgets/profile_icon.dart';
 
 class FindMentorScreen extends StatefulWidget {
   const FindMentorScreen({super.key});
@@ -16,33 +16,41 @@ class _FindMentorScreenState extends State<FindMentorScreen>
 
   Map<String, dynamic>? _foundMentor;
   bool _isSearching = false;
-  bool _isSending = false;
+  bool _isSending   = false;
   bool _hasSearched = false;
   bool _requestSent = false;
-  AnimationController? _animationController;
-  Animation<double>? _slideAnimation;
+  AnimationController? _animController;
+  Animation<double>? _slideAnim;
+
+  static const _bg     = Color(0xFF0A0E21);
+  static const _card   = Color(0xFF151A30);
+  static const _border = Color(0xFF1E2440);
+  static const _green  = Color(0xFF00E676);
+  static const _amber  = Color(0xFFFFB74D);
+  static const _red    = Color(0xFFFF5252);
+  static const _blue   = Color(0xFF42A5F5);
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
+    _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 600),
     );
-    _slideAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController!, curve: Curves.easeOut),
-    );
+    _slideAnim = CurvedAnimation(
+        parent: _animController!, curve: Curves.easeOutCubic);
   }
 
   @override
   void dispose() {
-    _animationController?.dispose();
+    _animController?.dispose();
     _codeController.dispose();
     super.dispose();
   }
 
   void _searchMentor() async {
     if (!_formKey.currentState!.validate()) return;
+    HapticFeedback.lightImpact();
 
     setState(() {
       _isSearching = true;
@@ -51,19 +59,15 @@ class _FindMentorScreenState extends State<FindMentorScreen>
       _requestSent = false;
     });
 
-    // 1. Search for the mentor
     final result = await ApiService.searchMentor(_codeController.text);
     bool isAlreadyRequested = false;
 
-    // 2. If we found a mentor, check if we already sent them a request
     if (result != null) {
       final myLinks = await ApiService.getMentorLinks();
-
       for (var link in myLinks) {
-        // Check if the mentor ID matches AND the status is still pending
         if (link['mentor'] == result['id'] && link['status'] == 'PENDING') {
           isAlreadyRequested = true;
-          break; // Stop searching the list once we find it
+          break;
         }
       }
     }
@@ -72,584 +76,540 @@ class _FindMentorScreenState extends State<FindMentorScreen>
       _isSearching = false;
       _foundMentor = result;
       _hasSearched = true;
-      _requestSent =
-          isAlreadyRequested; // Will be true if they already sent a request!
+      _requestSent = isAlreadyRequested;
     });
 
-    if (result != null) {
-      _animationController!.forward(from: 0.0);
-    }
+    if (result != null) _animController!.forward(from: 0.0);
   }
 
   void _sendRequest() async {
+    HapticFeedback.mediumImpact();
     setState(() => _isSending = true);
 
-    // 1. Now we expect an error message back (or null if successful)
-    String? errorMessage = await ApiService.sendMentorRequest(
-      _foundMentor!['id'],
-    );
+    final errorMessage =
+        await ApiService.sendMentorRequest(_foundMentor!['id']);
 
     setState(() => _isSending = false);
-
     if (!mounted) return;
 
     if (errorMessage == null) {
-      // SUCCESS: It returned null, meaning no errors!
-      setState(() {
-        _requestSent = true;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Text("Request Sent! Wait for approval."),
-            ],
-          ),
-          backgroundColor: Colors.green[700],
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
+      setState(() => _requestSent = true);
+      HapticFeedback.heavyImpact();
+      _showSnackbar(
+          'Request sent! Waiting for approval.',
+          Icons.check_circle_outline_rounded,
+          _green);
     } else {
-      // ERROR: Show the exact message Django sent us
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(errorMessage),
-              ), // Displays Django's custom message
-            ],
-          ),
-          backgroundColor: Colors.red[700],
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
+      _showSnackbar(errorMessage, Icons.error_outline_rounded, _red);
+    }
+  }
+
+  void _showSnackbar(String msg, IconData icon, Color col) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Row(children: [
+        Icon(icon, color: col, size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+            child:
+                Text(msg, style: const TextStyle(color: Colors.white))),
+      ]),
+      backgroundColor: _card,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: _border),
+      ),
+    ));
+  }
+
+  Color _riskColor(String risk) {
+    switch (risk) {
+      case 'Low':
+      case 'Conservative':
+        return _green;
+      case 'Moderate':
+        return _amber;
+      case 'High':
+      case 'Aggressive':
+        return _red;
+      default:
+        return _blue;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E21),
-
+      backgroundColor: _bg,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 40),
-
-                // Back Button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF151A30),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF1E2440)),
-                        ),
-                        child: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white,
-                          size: 16,
-                        ),
+        child: Column(
+          children: [
+            // ── Fixed top bar ──────────────────────────────────────────────
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: _card,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: _border),
                       ),
+                      child: const Icon(Icons.arrow_back_ios_new_rounded,
+                          color: Colors.white, size: 16),
                     ),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.bolt_rounded,
-                          color: Color(0xFF00E676),
-                          size: 18,
-                        ),
-                        const SizedBox(width: 6),
-                        const Text(
-                          'TRADEWISE',
-                          style: TextStyle(
-                            color: Color(0xFF00E676),
+                  ),
+                  const Row(children: [
+                    Icon(Icons.bolt_rounded, color: _green, size: 18),
+                    SizedBox(width: 6),
+                    Text('TRADEWISE',
+                        style: TextStyle(
+                            color: _green,
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                    ProfileIconButton(),
-                  ],
-                ),
+                            letterSpacing: 1.5)),
+                  ]),
+                  const SizedBox(width: 38), // Placeholder for centering
+                ],
+              ),
+            ),
 
-                const SizedBox(height: 30),
-
-                // Header Icon
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF00E676), Color(0xFF00BFA5)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color(0xFF00E676),
-                          blurRadius: 20,
-                          spreadRadius: 1,
-                          offset: Offset(0, 0),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.person_search,
-                      size: 60,
-                      color: Color(0xFF0A0E21),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 40),
-
-                // Title
-                const Center(
-                  child: Text(
-                    'Find Your Mentor',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Subtitle
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF151A30),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF1E2440)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: Colors.grey[500],
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Ask your Mentor for their unique Code',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[400],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 50),
-
-                // Search Form
-                Form(
+            // ── Scrollable body ────────────────────────────────────────────
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+                child: Form(
                   key: _formKey,
-                  child: TextFormField(
-                    controller: _codeController,
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
-                    textAlign: TextAlign.center,
-                    decoration: InputDecoration(
-                      labelText: 'Enter Mentor Code',
-                      labelStyle: TextStyle(color: Colors.grey[500]),
-                      hintText: 'e.g., 12345',
-                      hintStyle: TextStyle(color: Colors.grey[700]),
-                      prefixIcon: const Icon(
-                        Icons.tag,
-                        color: Color(0xFF00E676),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Hero section ───────────────────────────────────
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Find Your Mentor',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          height: 1.15,
+                          letterSpacing: -1,
+                        ),
                       ),
-                      suffixIcon: Container(
-                        margin: const EdgeInsets.all(6),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Enter the unique ID your mentor shared with you.',
+                        style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[500],
+                            height: 1.5),
+                      ),
+
+                      const SizedBox(height: 36),
+
+                      // ── Big code input ────────────────────────────────
+                      Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFF00E676),
-                          borderRadius: BorderRadius.circular(8),
+                          color: _card,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: _border),
                         ),
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.search,
-                            color: Color(0xFF0A0E21),
-                          ),
-                          onPressed: _isSearching ? null : _searchMentor,
-                        ),
-                      ),
-                      filled: true,
-                      fillColor: const Color(0xFF151A30),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF1E2440),
-                          width: 1,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF00E676),
-                          width: 2,
-                        ),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Color(0xFFFF5252),
-                          width: 1,
-                        ),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter a mentor code';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: 50),
-
-                // Result Area
-                if (_isSearching)
-                  Center(
-                    child: Column(
-                      children: [
-                        const CircularProgressIndicator(
-                          color: Color(0xFF00E676),
-                          strokeWidth: 3,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          "Searching...",
-                          style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // No Mentor Found Message
-                if (_hasSearched && _foundMentor == null && !_isSearching)
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(30),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF151A30),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFF1E2440)),
-                      ),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.person_off_outlined,
-                            size: 60,
-                            color: Colors.grey[600],
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            "No Mentor Found",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey[400],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            "We couldn't find a mentor with that code.\nPlease check and try again.",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[500],
-                              height: 1.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                if (_foundMentor != null && _slideAnimation != null)
-                  SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.3),
-                      end: Offset.zero,
-                    ).animate(_slideAnimation!),
-                    child: FadeTransition(
-                      opacity: _slideAnimation!,
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF151A30),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: const Color(0xFF00E676).withOpacity(0.2),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF00E676).withOpacity(0.05),
-                              blurRadius: 12,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Mentor Avatar
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Color(0xFF00E676),
-                                    Color(0xFF00BFA5),
-                                  ],
-                                ),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.person_pin,
-                                size: 50,
-                                color: Color(0xFF0A0E21),
-                              ),
-                            ),
-
-                            const SizedBox(height: 15),
-
-                            // Mentor Name
-                            Text(
-                              _foundMentor!['username'],
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-
+                            Text('MENTOR CODE',
+                                style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 1.2)),
                             const SizedBox(height: 8),
-
-                            // Mentor Code Badge
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
+                            TextFormField(
+                              controller: _codeController,
+                              keyboardType: TextInputType.number,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 38,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 6,
                               ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1E2440),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: const Color(0xFF2A3258),
+                              decoration: InputDecoration(
+                                hintText: '——————',
+                                hintStyle: TextStyle(
+                                  color: _border,
+                                  fontSize: 38,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 6,
                                 ),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding:
+                                    const EdgeInsets.only(bottom: 12),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.tag,
-                                    color: Color(0xFF00E676),
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    "ID: ${_foundMentor!['mentor_code']}",
-                                    style: const TextStyle(
-                                      color: Color(0xFF00E676),
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // Risk Profile Badge
-                            Builder(
-                              builder: (context) {
-                                final riskProfile =
-                                    _foundMentor!['risk_profile'] as String? ??
-                                    '';
-                                final riskColor =
-                                    riskProfile == 'Low' ||
-                                        riskProfile == 'Conservative'
-                                    ? const Color(0xFF00E676)
-                                    : riskProfile == 'Moderate'
-                                    ? const Color(0xFFFFB74D)
-                                    : riskProfile == 'High' ||
-                                          riskProfile == 'Aggressive'
-                                    ? const Color(0xFFFF5252)
-                                    : const Color(0xFF42A5F5);
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: riskColor.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: riskColor.withOpacity(0.3),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 6,
-                                        height: 6,
-                                        decoration: BoxDecoration(
-                                          color: riskColor,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Risk: $riskProfile',
-                                        style: TextStyle(
-                                          color: riskColor,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'Please enter a mentor code';
+                                }
+                                return null;
                               },
                             ),
-
-                            const SizedBox(height: 30),
-
-                            // Connect Button
-                            SizedBox(
-                              width: double.infinity,
-                              height: 56,
-                              child: ElevatedButton(
-                                // Disable the button if it's sending OR if it's already sent
-                                onPressed: (_isSending || _requestSent)
-                                    ? null
-                                    : _sendRequest,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _requestSent
-                                      ? const Color(0xFF1E2440)
-                                      : const Color(0xFF00E676),
-                                  disabledBackgroundColor: const Color(
-                                    0xFF1E2440,
+                            // Bottom row: error space + search trigger
+                            Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                // Inline validation hint
+                                const SizedBox(width: 4),
+                                // Search button inside the card
+                                GestureDetector(
+                                  onTap:
+                                      _isSearching ? null : _searchMentor,
+                                  child: Container(
+                                    margin:
+                                        const EdgeInsets.only(bottom: 16),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 20, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color:  Color.fromARGB(255, 4, 196, 103),
+                                      borderRadius:
+                                          BorderRadius.circular(12),
+                                    ),
+                                    child: _isSearching
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              color: _bg,
+                                              strokeWidth: 2.5,
+                                            ),
+                                          )
+                                        : const Row(
+                                            children: [
+                                              Icon(Icons.search_rounded,
+                                                  color: _bg, size: 18),
+                                              SizedBox(width: 6),
+                                              Text(
+                                                'Search',
+                                                style: TextStyle(
+                                                  color: _bg,
+                                                  fontWeight:
+                                                      FontWeight.w700,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                   ),
-                                  foregroundColor: _requestSent
-                                      ? const Color(0xFF00E676)
-                                      : const Color(0xFF0A0E21),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 0,
                                 ),
-                                child: _isSending
-                                    ? const SizedBox(
-                                        height: 24,
-                                        width: 24,
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2.5,
-                                        ),
-                                      )
-                                    : _requestSent
-                                    ? const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.check_circle_outline,
-                                            color: Color(0xFF00E676),
-                                            size: 18,
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'REQUEST SENT',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 1.2,
-                                              color: Color(0xFF00E676),
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.link,
-                                            color: Color(0xFF0A0E21),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'CONNECT',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 1.2,
-                                              color: Color(0xFF0A0E21),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                              ),
+                              ],
                             ),
                           ],
                         ),
                       ),
+
+                      const SizedBox(height: 36),
+
+                      // ── Not found ─────────────────────────────────────
+                      if (_hasSearched &&
+                          _foundMentor == null &&
+                          !_isSearching)
+                        _buildNotFound(),
+
+                      // ── Found mentor card ─────────────────────────────
+                      if (_foundMentor != null && _slideAnim != null)
+                        FadeTransition(
+                          opacity: _slideAnim!,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, 0.15),
+                              end: Offset.zero,
+                            ).animate(_slideAnim!),
+                            child: _buildMentorCard(),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotFound() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _red.withOpacity(0.25)),
+      ),
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: _red.withOpacity(0.08),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const Icon(Icons.search_off_rounded, color: _red, size: 32),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const Text('No match found',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Text(
+            "Double-check the code with your mentor\nand try again.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                color: Colors.grey[500], fontSize: 13, height: 1.6),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMentorCard() {
+    final riskProfile = _foundMentor!['risk_profile'] as String? ?? '';
+    final riskCol     = _riskColor(riskProfile);
+    final username    = _foundMentor!['username'] as String? ?? '?';
+    final initial     = username.isNotEmpty ? username[0].toUpperCase() : '?';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── "Mentor found" label ───────────────────────────────────────────
+        Row(
+          children: [
+            Container(
+              width: 3,
+              height: 16,
+              decoration: BoxDecoration(
+                  color: _green, borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(width: 8),
+            Text('Mentor found',
+                style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5)),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // ── Profile strip ──────────────────────────────────────────────────
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Large initial avatar
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    _green.withOpacity(0.25),
+                    _green.withOpacity(0.08),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: _green.withOpacity(0.3)),
+              ),
+              child: Center(
+                child: Text(
+                  initial,
+                  style: const TextStyle(
+                    color: _green,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    username,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.3,
                     ),
                   ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Mentor',
+                    style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
 
-                const SizedBox(height: 40),
-              ],
+        const SizedBox(height: 20),
+
+        // ── Stat tiles row ─────────────────────────────────────────────────
+        Row(
+          children: [
+            Expanded(
+              child: _statTile(
+                label: 'Mentor ID',
+                value: '${_foundMentor!['mentor_code']}',
+                icon: Icons.tag_rounded,
+                color: _blue,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _statTile(
+                label: 'Risk Profile',
+                value: riskProfile.isNotEmpty ? riskProfile : '—',
+                icon: Icons.shield_outlined,
+                color: riskCol,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+
+        // ── Connect button ─────────────────────────────────────────────────
+        GestureDetector(
+          onTap: (_isSending || _requestSent) ? null : _sendRequest,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            width: double.infinity,
+            height: 54,
+            decoration: BoxDecoration(
+              color: _requestSent
+                  ? _green.withOpacity(0.08)
+                  : _isSending
+                      ? _border
+                      : Color.fromARGB(255, 4, 196, 103),
+              borderRadius: BorderRadius.circular(16),
+              border: _requestSent
+                  ? Border.all(color: _green.withOpacity(0.3))
+                  : null,
+            ),
+            child: Center(
+              child: _isSending
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          color: _bg, strokeWidth: 2.5),
+                    )
+                  : _requestSent
+                      ? const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.check_circle_outline_rounded,
+                                color: _green, size: 17),
+                            SizedBox(width: 8),
+                            Text('REQUEST SENT',
+                                style: TextStyle(
+                                  color: _green,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.2,
+                                )),
+                          ],
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.link_rounded,
+                                color: _bg, size: 18),
+                            SizedBox(width: 8),
+                            Text('CONNECT',
+                                style: TextStyle(
+                                  color: _bg,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.5,
+                                )),
+                          ],
+                        ),
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _statTile({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 15),
+              ),
+              const SizedBox(width: 8),
+              Text(label,
+                  style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

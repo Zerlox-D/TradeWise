@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../api_service.dart';
 import 'login_screen.dart';
 import 'mentor_quiz_draft_screen.dart';
@@ -14,14 +15,23 @@ class MentorDashboard extends StatefulWidget {
 
 class _MentorDashboardState extends State<MentorDashboard> {
   Map<String, dynamic>? _userProfile;
-  List<dynamic> _mentorLinks = [];
-  List<dynamic> _goals = [];
-  List<dynamic> _holdings = [];
-  List<dynamic> _trades = [];
+  List<dynamic> _mentorLinks    = [];
+  List<dynamic> _goals          = [];
+  List<dynamic> _holdings       = [];
+  List<dynamic> _trades         = [];
   List<dynamic> _unlockRequests = [];
-  List<dynamic> _activeQuizzes = [];
+  List<dynamic> _activeQuizzes  = [];
   Map<String, double> _livePrices = {};
   bool _isLoading = true;
+
+  // ── Brand palette ──────────────────────────────────────────────────────────
+  static const _bg     = Color(0xFF0A0E21);
+  static const _card   = Color(0xFF151A30);
+  static const _border = Color(0xFF1E2440);
+  static const _green  = Color(0xFF00E676);
+  static const _amber  = Color(0xFFFFB74D);
+  static const _red    = Color(0xFFFF5252);
+  static const _blue   = Color(0xFF42A5F5);
 
   @override
   void initState() {
@@ -32,32 +42,43 @@ class _MentorDashboardState extends State<MentorDashboard> {
   Future<void> _loadDashboardData() async {
     setState(() => _isLoading = true);
     try {
-      // Fetch profile, links, and goals in parallel
-      final profile = await ApiService.getUserProfile();
-      final links = await ApiService.getMentorLinks();
-      final goals = await ApiService.getGoals();
-      final holdings = await ApiService.getHoldings();
-      final trades = await ApiService.getTrades();
+      final profile        = await ApiService.getUserProfile();
+      final links          = await ApiService.getMentorLinks();
+      final goals          = await ApiService.getGoals();
+      final holdings       = await ApiService.getHoldings();
+      final trades         = await ApiService.getTrades();
       final unlockRequests = await ApiService.getTradeUnlockRequests();
-      final activeQuizzes = await ApiService.getMentorQuizzes()??[];
+      final activeQuizzes  = await ApiService.getMentorQuizzes() ?? [];
 
       if (mounted) {
         setState(() {
-          _userProfile = profile;
-          _mentorLinks = links;
-          _holdings = holdings;
-          _goals = goals;
-          _trades = trades;
+          _userProfile    = profile;
+          _mentorLinks    = links;
+          _holdings       = holdings;
+          _goals          = goals;
+          _trades         = trades;
           _unlockRequests = unlockRequests;
-          _activeQuizzes = activeQuizzes;
-          _isLoading = false;
+          _activeQuizzes  = activeQuizzes;
+          _isLoading      = false;
         });
-
         _fetchLivePricesForHoldings();
       }
     } catch (e) {
       print("Dashboard Error: $e");
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _fetchLivePricesForHoldings() async {
+    for (var holding in _holdings) {
+      final symbol   = holding['symbol'];
+      final quantity = holding['total_quantity'] ?? 0;
+      if (symbol != null && quantity > 0) {
+        final price = await ApiService.getLivePrice(symbol);
+        if (price != null && mounted) {
+          setState(() => _livePrices[symbol] = price);
+        }
+      }
     }
   }
 
@@ -69,85 +90,54 @@ class _MentorDashboardState extends State<MentorDashboard> {
           ? 'Unlock approved by mentor.'
           : 'Mentor kept the lock active.',
     );
-
     if (success) {
       _loadDashboardData();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            action == 'approve'
-                ? 'Trading unlocked for student.'
-                : 'Student remains locked.',
-          ),
-          backgroundColor: action == 'approve' ? Colors.green : Colors.orange,
+          content: Text(action == 'approve'
+              ? 'Trading unlocked for student.'
+              : 'Student remains locked.'),
+          backgroundColor: action == 'approve' ? _green : _amber,
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to process unlock request.'),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: _red,
         ),
       );
     }
   }
 
-  // Fetches live prices in the background so the UI doesn't freeze!
-  Future<void> _fetchLivePricesForHoldings() async {
-    for (var holding in _holdings) {
-      final symbol = holding['symbol'];
-      final quantity = holding['total_quantity'] ?? 0;
-
-      // Only fetch prices for stocks they actually currently own
-      if (symbol != null && quantity > 0) {
-        final price = await ApiService.getLivePrice(symbol);
-        if (price != null && mounted) {
-          setState(() {
-            _livePrices[symbol] =
-                price; // Update the state with the new live price!
-          });
-        }
-      }
-    }
-  }
-
-  // Action for mentors to accept/reject
   void _handleRequest(int linkId, String action) async {
-    // Calls the ApiService function we added earlier
     bool success = await ApiService.respondToRequest(linkId, action);
-
     if (success) {
-      _loadDashboardData(); // Refresh the dashboard to move them from Pending to Active!
+      _loadDashboardData();
     } else {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Failed to $action request. Please try again."),
-          backgroundColor: Colors.red[700],
+          backgroundColor: _red,
         ),
       );
     }
   }
 
-  // Action for mentors to approve/reject high-risk trades
   Future<void> _handleTradeAction(
-    int tradeId,
-    String action,
-    String comment,
-  ) async {
-    // You can optionally show a dialog here to capture a 'comment', but we'll default to empty for now
+      int tradeId, String action, String comment) async {
     bool success = await ApiService.respondToTrade(
       tradeId,
       action,
       comment: comment.isEmpty ? "Reviewed by Mentor." : comment,
     );
-
     if (success) {
-      _loadDashboardData(); // Refresh UI to remove it from the pending list!
+      _loadDashboardData();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Trade ${action}ed successfully."),
-          backgroundColor: Colors.green,
+          backgroundColor: _green,
         ),
       );
     } else {
@@ -155,34 +145,29 @@ class _MentorDashboardState extends State<MentorDashboard> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            "Failed to process trade. The student's balance may have changed.",
-          ),
-          backgroundColor: Colors.redAccent,
+              "Failed to process trade. The student's balance may have changed."),
+          backgroundColor: _red,
         ),
       );
     }
   }
 
-  // --- ADD THIS NEW DIALOG FUNCTION ---
   void _showCommentDialog(int tradeId, String action) {
-    final _commentController = TextEditingController();
-    bool _isLoading = false;
+    final commentController = TextEditingController();
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) => StatefulBuilder(
-        builder: (BuildContext context, StateSetter setState) => AlertDialog(
-          backgroundColor: const Color(0xFF1D1E33),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+        builder: (BuildContext context, StateSetter setS) => AlertDialog(
+          backgroundColor: _card,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text(
             action == 'approve' ? "Approve Trade" : "Reject Trade",
             style: TextStyle(
-              color: action == 'approve'
-                  ? Colors.greenAccent
-                  : Colors.redAccent,
+              color: action == 'approve' ? _green : _red,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -198,13 +183,13 @@ class _MentorDashboardState extends State<MentorDashboard> {
               ),
               const SizedBox(height: 12),
               TextField(
-                controller: _commentController,
+                controller: commentController,
                 maxLines: 3,
-                enabled: !_isLoading,
+                enabled: !isSubmitting,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: const Color(0xFF0A0E21),
+                  fillColor: _bg,
                   hintText: "Type your feedback here...",
                   hintStyle: TextStyle(color: Colors.grey[600]),
                   border: OutlineInputBorder(
@@ -217,61 +202,49 @@ class _MentorDashboardState extends State<MentorDashboard> {
           ),
           actions: [
             TextButton(
-              onPressed: _isLoading ? null : () => Navigator.pop(dialogContext),
-              child: Text(
-                "Cancel",
-                style: TextStyle(
-                  color: _isLoading ? Colors.grey[600] : Colors.grey,
-                ),
-              ),
+              onPressed: isSubmitting
+                  ? null
+                  : () => Navigator.pop(dialogContext),
+              child: Text("Cancel",
+                  style: TextStyle(
+                      color: isSubmitting ? Colors.grey[600] : Colors.grey)),
             ),
             ElevatedButton(
-              onPressed: _isLoading
+              onPressed: isSubmitting
                   ? null
                   : () async {
-                      final comment = _commentController.text.trim();
+                      final comment = commentController.text.trim();
                       if (action == 'reject' && comment.isEmpty) {
                         ScaffoldMessenger.of(dialogContext).showSnackBar(
                           const SnackBar(
-                            content: Text(
-                              "Please provide a reason for rejection.",
-                            ),
-                          ),
+                              content: Text(
+                                  "Please provide a reason for rejection.")),
                         );
                         return;
                       }
-
-                      setState(() => _isLoading = true);
-
+                      setS(() => isSubmitting = true);
                       await _handleTradeAction(tradeId, action, comment);
-
-                      if (mounted) {
-                        Navigator.pop(dialogContext);
-                      }
+                      if (mounted) Navigator.pop(dialogContext);
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: _isLoading
+                backgroundColor: isSubmitting
                     ? Colors.grey
                     : (action == 'approve'
-                          ? Colors.green[600]
-                          : Colors.red[600]),
+                        ? const Color(0xFF00C853)
+                        : const Color(0xFFD32F2F)),
               ),
-              child: _isLoading
-                  ? SizedBox(
+              child: isSubmitting
+                  ? const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white)),
                     )
-                  : const Text(
-                      "Submit",
+                  : const Text("Submit",
                       style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                          color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -283,33 +256,30 @@ class _MentorDashboardState extends State<MentorDashboard> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1D1E33),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          "Logout",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        backgroundColor: _card,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text("Logout",
+            style:
+                TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: const Text(
           "Are you sure you want to log out of your account?",
           style: TextStyle(color: Colors.grey),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context), // Close dialog
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            onPressed: () => Navigator.pop(context),
+            child:
+                const Text("Cancel", style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Close dialog
-              _logout(); // Actually log them out
+              Navigator.pop(context);
+              _logout();
             },
-            child: const Text(
-              "Logout",
-              style: TextStyle(
-                color: Colors.redAccent,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: const Text("Logout",
+                style: TextStyle(
+                    color: _red, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -317,191 +287,386 @@ class _MentorDashboardState extends State<MentorDashboard> {
   }
 
   void _logout() async {
-    // 1. Clear the token from your ApiService/Storage
     await ApiService.logout();
-
     if (!mounted) return;
-
-    // 2. Navigate back to Login and completely clear the app's route history
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (route) =>
-          false, // This prevents them from hitting the Android 'Back' button to return to the dashboard
+      (route) => false,
     );
   }
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  Widget _sectionHeader(String title, {Widget? trailing}) {
+    return Row(
+      children: [
+        Container(
+          width: 3,
+          height: 18,
+          decoration: BoxDecoration(
+              color: _green, borderRadius: BorderRadius.circular(2)),
+        ),
+        const SizedBox(width: 10),
+        Text(title,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600)),
+        const Spacer(),
+        if (trailing != null) trailing,
+      ],
+    );
+  }
+
+  Widget _countBadge(int count, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text('$count',
+          style: TextStyle(
+              color: color, fontSize: 12, fontWeight: FontWeight.w700)),
+    );
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: Color(0xFF0A0E21),
-        body: Center(child: CircularProgressIndicator(color: Colors.blue)),
+        backgroundColor: _bg,
+        body: Center(child: CircularProgressIndicator(color: _green)),
       );
     }
 
     if (_userProfile == null) {
       return const Scaffold(
-        backgroundColor: Color(0xFF0A0E21),
+        backgroundColor: _bg,
         body: Center(
-          child: Text(
-            "Failed to load profile",
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
+            child: Text("Failed to load profile",
+                style: TextStyle(color: Colors.white))),
       );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E21),
-
-      appBar: AppBar(
-        title: const Text(
-          "Dashboard",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          TextButton(
-            onPressed: _showLogoutConfirmation,
-            child: const Text(
-              "Logout",
-              style: TextStyle(
-                color: Colors.redAccent,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadDashboardData,
-        color: Colors.blue,
-        backgroundColor: const Color(0xFF1D1E33),
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              DashboardHeaderAnalytics.buildHeader(_userProfile),
-              const SizedBox(height: 30),
-
-              const Text(
-                "Analytics",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+      backgroundColor: _bg,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _loadDashboardData,
+          color: _green,
+          backgroundColor: _card,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Brand bar ────────────────────────────────────────────
+                const Row(
+                  children: [
+                    Icon(Icons.bolt_rounded, color: _green, size: 18),
+                    SizedBox(width: 6),
+                    Text(
+                      'TRADEWISE',
+                      style: TextStyle(
+                        color: _green,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              DashboardHeaderAnalytics.buildAnalyticsSection(
-                _userProfile,
-                _goals,
-                () => DashboardHeaderAnalytics.showGoalsBottomSheet(
-                  context,
+                const SizedBox(height: 24),
+
+                // ── Profile hero ──────────────────────────────────────────
+                _buildProfileHero(),
+                const SizedBox(height: 28),
+
+                // ── Mentor ID card with working copy ─────────────────────
+                _buildMentorIdCard(),
+                const SizedBox(height: 28),
+
+                // ── Analytics header ─────────────────────────────────────
+                _sectionHeader('Analytics'),
+                const SizedBox(height: 14),
+                DashboardHeaderAnalytics.buildAnalyticsSection(
+                  _userProfile,
                   _goals,
-                  () => DashboardHeaderAnalytics.showAddGoalDialog(
+                  () => DashboardHeaderAnalytics.showGoalsBottomSheet(
                     context,
-                    _loadDashboardData,
-                  ),
-                  (goal) => DashboardHeaderAnalytics.showEditGoalDialog(
-                    context,
-                    goal,
-                    _loadDashboardData,
-                  ),
-                  (goal) => DashboardHeaderAnalytics.confirmDeleteGoal(
-                    context,
-                    goal,
-                    _loadDashboardData,
+                    _goals,
+                    () => DashboardHeaderAnalytics.showAddGoalDialog(
+                        context, _loadDashboardData),
+                    (goal) => DashboardHeaderAnalytics.showEditGoalDialog(
+                        context, goal, _loadDashboardData),
+                    (goal) => DashboardHeaderAnalytics.confirmDeleteGoal(
+                        context, goal, _loadDashboardData),
                   ),
                 ),
-              ),
+                const SizedBox(height: 28),
 
-              const SizedBox(height: 30),
+                // ── Mentor actions + investors ────────────────────────────
+                _buildMentorSection(),
+                const SizedBox(height: 32),
 
-              _buildMentorSection(),
-            ],
+                // ── Logout — bottom of screen ─────────────────────────────
+                GestureDetector(
+                  onTap: _showLogoutConfirmation,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: _red.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: _red.withOpacity(0.25)),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.logout_rounded, color: _red, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'Logout',
+                          style: TextStyle(
+                            color: _red,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // --- 3A. THE MENTOR SECTION ---
+  // ── Profile hero ───────────────────────────────────────────────────────────
+  Widget _buildProfileHero() {
+    final balance     = _userProfile!['wallet_balance'] ?? "0.00";
+    final riskProfile = _userProfile!['risk_profile'] ?? "Moderate";
+    final username    = _userProfile!['username'] ?? '';
+
+    Color riskCol;
+    switch (riskProfile) {
+      case 'Low':
+      case 'Conservative':
+        riskCol = _green;
+        break;
+      case 'Moderate':
+        riskCol = _amber;
+        break;
+      case 'High':
+      case 'Aggressive':
+        riskCol = _red;
+        break;
+      default:
+        riskCol = _blue;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Welcome back,',
+            style: TextStyle(fontSize: 14, color: Colors.grey[500])),
+        const SizedBox(height: 6),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Text(username,
+                  style: const TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: -0.5)),
+            ),
+            const SizedBox(width: 12),
+            // Risk profile badge — back in its original position
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: riskCol.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: riskCol.withOpacity(0.35)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration:
+                        BoxDecoration(color: riskCol, shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(riskProfile,
+                      style: TextStyle(
+                          color: riskCol,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+
+          ],
+        ),
+        const SizedBox(height: 18),
+
+        // Wallet + Risk + Discipline hero card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0D2137), Color(0xFF0A1628)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Total Balance',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+              const SizedBox(height: 6),
+              Text('₹$balance',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 34,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5)),
+
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Mentor ID card ─────────────────────────────────────────────────────────
+  Widget _buildMentorIdCard() {
+    final mentorId    = _userProfile!['id'] + 130200;
+    final mentorIdStr = mentorId.toString();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: _green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.badge_rounded, color: _green, size: 22),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Mentor ID',
+                    style:
+                        TextStyle(color: Colors.grey[500], fontSize: 11)),
+                const SizedBox(height: 3),
+                Text(mentorIdStr,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2)),
+              ],
+            ),
+          ),
+          // ── Functional copy button ────────────────────────────────────
+          GestureDetector(
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: mentorIdStr));
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Row(
+                    children: [
+                      Icon(Icons.check_circle_outline,
+                          color: _green, size: 18),
+                      SizedBox(width: 10),
+                      Text('Mentor ID copied!',
+                          style: TextStyle(color: Colors.white)),
+                    ],
+                  ),
+                  backgroundColor: _card,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: const BorderSide(color: _border)),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: _green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _green.withOpacity(0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.copy_rounded, color: _green, size: 20),
+                  // SizedBox(width: 6),
+                  // Text('Copy',
+                  //     style: TextStyle(
+                  //         color: _green,
+                  //         fontSize: 13,
+                  //         fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Mentor section ─────────────────────────────────────────────────────────
   Widget _buildMentorSection() {
-    // Separate links into pending requests and active students
     final pendingRequests = _mentorLinks
         .where((link) => link['status'] == 'PENDING')
         .toList();
     final activeStudents = _mentorLinks
         .where((link) => link['status'] == 'ACCEPTED')
         .toList();
-    final pendingUnlockRequests = _unlockRequests
-        .where((req) => req['status'] == 'PENDING')
-        .toList();
+    final pendingUnlockRequests =
+        _unlockRequests.where((req) => req['status'] == 'PENDING').toList();
+    final pendingTrades =
+        _trades.where((t) => t['status'] == 'PENDING_MENTOR').toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. The Invite Code Card
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1D1E33),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.blue.withOpacity(0.3)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Mentor ID",
-                    style: TextStyle(color: Colors.grey[400], fontSize: 14),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "${_userProfile!['id'] + 130200}", // Your custom math logic!
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.copy, color: Colors.blue[400]),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 30),
-
-        // 2. Pending Requests List
+        // ── Pending connection requests ──────────────────────────────────
         if (pendingRequests.isNotEmpty) ...[
-          Text(
-            "Pending Requests (${pendingRequests.length})",
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 16),
+          _sectionHeader('Pending Requests',
+              trailing: _countBadge(pendingRequests.length, _amber)),
+          const SizedBox(height: 14),
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -509,153 +674,193 @@ class _MentorDashboardState extends State<MentorDashboard> {
             itemBuilder: (context, index) {
               final req = pendingRequests[index];
               return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1D1E33),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  color: _card,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _amber.withOpacity(0.3)),
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.orange.withOpacity(0.2),
-                      child: const Icon(Icons.person_add, color: Colors.orange),
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: _amber.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.person_add_rounded,
+                          color: _amber, size: 20),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            req['student_name'] ?? "Investor",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            "Wants to connect",
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 12,
-                            ),
-                          ),
+                          Text(req['student_name'] ?? "Investor",
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 2),
+                          Text('Wants to connect',
+                              style: TextStyle(
+                                  color: Colors.grey[500], fontSize: 12)),
                         ],
                       ),
                     ),
-                    // Reject Button
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.redAccent),
-                      onPressed: () => _handleRequest(req['id'], 'reject'),
+                      icon: const Icon(Icons.close_rounded, color: _red),
+                      onPressed: () =>
+                          _handleRequest(req['id'], 'reject'),
                     ),
-                    // Accept Button
                     IconButton(
-                      icon: const Icon(
-                        Icons.check_circle,
-                        color: Colors.greenAccent,
-                        size: 28,
-                      ),
-                      onPressed: () => _handleRequest(req['id'], 'accept'),
+                      icon: const Icon(Icons.check_circle_rounded,
+                          color: _green, size: 26),
+                      onPressed: () =>
+                          _handleRequest(req['id'], 'accept'),
                     ),
                   ],
                 ),
               );
             },
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
         ],
 
+        // ── Trade unlock requests ────────────────────────────────────────
         if (pendingUnlockRequests.isNotEmpty) ...[
-          Text(
-            "Trade Unlock Requests (${pendingUnlockRequests.length})",
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 16),
+          _sectionHeader('Trade Unlock Requests',
+              trailing:
+                  _countBadge(pendingUnlockRequests.length, _amber)),
+          const SizedBox(height: 14),
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: pendingUnlockRequests.length,
             itemBuilder: (context, index) {
               final req = pendingUnlockRequests[index];
-              final bool hasActiveQuiz = _activeQuizzes.any((q) => q['student_name'] == req['student_name']);
+              final bool hasActiveQuiz = _activeQuizzes.any(
+                  (q) => q['student_name'] == req['student_name'] && q['status'] == 'PUBLISHED');
 
               return Container(
-                margin: const EdgeInsets.only(bottom: 12),
+                margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1D1E33),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.orange.withOpacity(0.4)),
+                  color: _card,
+                  borderRadius: BorderRadius.circular(14),
+                  border:
+                      Border.all(color: _amber.withOpacity(0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      req['student_name'] ?? 'Investor',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _amber.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.lock_open_rounded,
+                              color: _amber, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                              req['student_name'] ?? 'Investor',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15)),
+                        ),
+                        if (hasActiveQuiz)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _blue.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                  color: _blue.withOpacity(0.3)),
+                            ),
+                            child: const Text('Quiz Active',
+                                style: TextStyle(
+                                    color: _blue,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                      ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      req['requested_reason'] ??
-                          'Trading is locked. Student requests to unlock.',
-                      style: TextStyle(color: Colors.grey[300], fontSize: 13),
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _bg,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        req['requested_reason'] ??
+                            'Trading is locked. Student requests to unlock.',
+                        style: TextStyle(
+                            color: Colors.grey[300], fontSize: 13),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Row(
-                      // 1. Center the button if a quiz is active, otherwise align right
-                      mainAxisAlignment: hasActiveQuiz 
-                          ? MainAxisAlignment.center 
+                      mainAxisAlignment: hasActiveQuiz
+                          ? MainAxisAlignment.center
                           : MainAxisAlignment.end,
                       children: [
-                        
-                        // 2. Hide "Keep Locked" entirely if a quiz is already in progress
                         if (!hasActiveQuiz) ...[
                           OutlinedButton(
-                            onPressed: () => _handleUnlockRequestAction(req['id'], 'reject'),
+                            onPressed: () =>
+                                _handleUnlockRequestAction(
+                                    req['id'], 'reject'),
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.orangeAccent),
-                            ),
-                            child: const Text(
-                              "Keep Locked",
-                              style: TextStyle(color: Colors.orangeAccent),
-                            ),
+                                side: const BorderSide(color: _amber)),
+                            child: const Text("Keep Locked",
+                                style: TextStyle(color: _amber)),
                           ),
                           const SizedBox(width: 10),
                         ],
-                        
-                        // 3. The Draft/Active Quiz Button
                         ElevatedButton(
-                          onPressed: hasActiveQuiz ? null : () {
-                            final int studentId = req['student_id'] ?? req['user_id'] ?? req['student'];
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => MentorQuizDraftScreen(
-                                  studentId: studentId,
-                                  studentName: req['student_name'] ?? 'Student',
-                                  requestId: req['id'], 
-                                ),
-                              ),
-                            ).then((_) => _loadDashboardData()); 
-                          },
+                          onPressed: hasActiveQuiz
+                              ? null
+                              : () {
+                                  final int studentId =
+                                      req['student_id'] ??
+                                          req['user_id'] ??
+                                          req['student'];
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          MentorQuizDraftScreen(
+                                        studentId: studentId,
+                                        studentName:
+                                            req['student_name'] ?? 'Student',
+                                        requestId: req['id'],
+                                      ),
+                                    ),
+                                  ).then((_) => _loadDashboardData());
+                                },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: hasActiveQuiz ? Colors.grey[800] : Colors.blueAccent, 
+                            backgroundColor: hasActiveQuiz
+                                ? const Color(0xFF1E2440)
+                                : _blue,
                           ),
                           child: Text(
                             hasActiveQuiz ? "Quiz Active" : "Draft Quiz",
                             style: TextStyle(
-                              color: hasActiveQuiz ? Colors.grey[500] : Colors.white
-                            ),
+                                color: hasActiveQuiz
+                                    ? Colors.grey[500]
+                                    : Colors.white),
                           ),
                         ),
                       ],
@@ -665,194 +870,154 @@ class _MentorDashboardState extends State<MentorDashboard> {
               );
             },
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
         ],
 
-        Builder(
-          builder: (context) {
-            final pendingTrades = _trades
-                .where((t) => t['status'] == 'PENDING_MENTOR')
-                .toList();
+        // ── Risky trades ─────────────────────────────────────────────────
+        if (pendingTrades.isNotEmpty) ...[
+          _sectionHeader('Risky Trades · Action Required',
+              trailing: _countBadge(pendingTrades.length, _red)),
+          const SizedBox(height: 14),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: pendingTrades.length,
+            itemBuilder: (context, index) {
+              final trade = pendingTrades[index];
+              final isBuy = trade['transaction_type'] == 'BUY';
 
-            if (pendingTrades.isEmpty) return const SizedBox.shrink();
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Action Required: Risky Trades (${pendingTrades.length})",
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _card,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: _red.withOpacity(0.4), width: 1.5),
                 ),
-                const SizedBox(height: 16),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: pendingTrades.length,
-                  itemBuilder: (context, index) {
-                    final trade = pendingTrades[index];
-                    final isBuy = trade['transaction_type'] == 'BUY';
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment:
+                          MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              isBuy
+                                  ? Icons.arrow_downward
+                                  : Icons.arrow_upward,
+                              color: isBuy ? _green : _amber,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "${trade['transaction_type']} ${trade['symbol']}",
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                        Text("₹${trade['total_amount']}",
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.person_outline,
+                            color: Colors.grey[500], size: 14),
+                        const SizedBox(width: 6),
+                        Text(
+                          "Requested by: ${trade['username'] ?? trade['user_name'] ?? 'Student'}",
+                          style: TextStyle(
+                              color: Colors.grey[400], fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1D1E33),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.redAccent.withOpacity(0.4),
-                          width: 1.5,
-                        ), // Red border for high risk!
-                      ),
+                          color: _bg,
+                          borderRadius: BorderRadius.circular(10)),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    isBuy
-                                        ? Icons.arrow_downward
-                                        : Icons.arrow_upward,
-                                    color: isBuy
-                                        ? Colors.greenAccent
-                                        : Colors.orangeAccent,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    "${trade['transaction_type']} ${trade['symbol']}",
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                "₹${trade['total_amount']}",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.person_outline,
-                                color: Colors.grey[400],
-                                size: 16,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                "Requested by: ${trade['username'] ?? trade['user_name'] ?? 'Student'}",
-                                style: TextStyle(
-                                  color: Colors.grey[300],
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.black26,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Student's Justification:",
-                                  style: TextStyle(
-                                    color: Colors.grey[400],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  trade['justification'] ??
-                                      "No justification provided.",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              OutlinedButton(
-                                onPressed: () =>
-                                    _showCommentDialog(trade['id'], 'reject'),
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                    color: Colors.redAccent,
-                                  ),
-                                ),
-                                child: const Text(
-                                  "Reject",
-                                  style: TextStyle(color: Colors.redAccent),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              ElevatedButton(
-                                onPressed: () =>
-                                    _showCommentDialog(trade['id'], 'approve'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                ),
-                                child: const Text(
-                                  "Approve Trade",
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ),
-                            ],
+                          Text("Student's Justification:",
+                              style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 11)),
+                          const SizedBox(height: 4),
+                          Text(
+                            trade['justification'] ??
+                                "No justification provided.",
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontStyle: FontStyle.italic,
+                                fontSize: 13),
                           ),
                         ],
                       ),
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        OutlinedButton(
+                          onPressed: () =>
+                              _showCommentDialog(trade['id'], 'reject'),
+                          style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: _red)),
+                          child: const Text("Reject",
+                              style: TextStyle(color: _red)),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton(
+                          onPressed: () =>
+                              _showCommentDialog(trade['id'], 'approve'),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  const Color(0xFF00C853)),
+                          child: const Text("Approve",
+                              style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-              ],
-            );
-          },
-        ),
-
-        // 3. Active Students List
-        Text(
-          "My Investors (${activeStudents.length})",
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+              );
+            },
           ),
-        ),
-        const SizedBox(height: 16),
+          const SizedBox(height: 24),
+        ],
+
+        // ── Active investors ─────────────────────────────────────────────
+        _sectionHeader('My Investors',
+            trailing: _countBadge(activeStudents.length, _blue)),
+        const SizedBox(height: 14),
 
         if (activeStudents.isEmpty)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(30.0),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: _card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _border),
+            ),
+            child: Center(
               child: Text(
                 "You don't have any connected investors yet.",
                 style: TextStyle(color: Colors.grey[500]),
+                textAlign: TextAlign.center,
               ),
             ),
           )
@@ -863,49 +1028,54 @@ class _MentorDashboardState extends State<MentorDashboard> {
             itemCount: activeStudents.length,
             itemBuilder: (context, index) {
               final student = activeStudents[index];
-
-              // --- WRAPPED IN GESTURE DETECTOR ---
               return GestureDetector(
                 onTap: () {
-                  // Safely extract the ID depending on how your Django serializer names it
                   final int targetId =
                       student['student_id'] ?? student['student'];
-
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => StudentPortfolioScreen(
                         studentId: targetId,
-                        studentName: student['student_name'] ?? "Investor",
+                        studentName:
+                            student['student_name'] ?? "Investor",
                       ),
                     ),
                   );
                 },
                 child: Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1D1E33),
-                    borderRadius: BorderRadius.circular(16),
+                    color: _card,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: _border),
                   ),
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.blue.withOpacity(0.2),
-                        child: const Icon(Icons.person, color: Colors.blue),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: _blue.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.person_rounded,
+                            color: _blue, size: 20),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 14),
                       Expanded(
                         child: Text(
                           student['student_name'] ?? "Investor",
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600),
                         ),
                       ),
-                      Icon(Icons.chevron_right, color: Colors.grey[600]),
+                      Icon(Icons.chevron_right,
+                          color: Colors.grey[600]),
                     ],
                   ),
                 ),

@@ -158,7 +158,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   Widget _buildBottomBar() {
     return BottomAppBar(
-      color: const Color(0xFF111633),
+      color: const Color.fromARGB(255, 14, 27, 46),
       shape: const CircularNotchedRectangle(),
       notchMargin: 10,
       elevation: 20,

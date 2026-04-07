@@ -258,12 +258,11 @@ class _StudentPortfolioScreenState extends State<StudentPortfolioScreen> {
                                           100,
                                       strokeWidth: 6,
                                       backgroundColor: const Color(0xFF1E2440),
-                                      color:
-                                          (_portfolioData!['discipline_score'] ??
-                                                  0) >=
-                                              80
-                                          ? const Color(0xFF00E676)
-                                          : const Color(0xFFFFB74D),
+                                      color: (_portfolioData!['discipline_score'] ?? 0) >= 75
+                                              ? const Color(0xFF00E676)
+                                              : (_portfolioData!['discipline_score'] ?? 0) >= 40
+                                              ? const Color(0xFFFFB74D)
+                                              : const Color(0xFFFF5252),
                                     ),
                                   ),
                                   Text(

@@ -6,7 +6,7 @@ class AppConstants {
   // --- Network Configuration ---
 
   static const String _webUrl = "http://127.0.0.1:8000";
-  static const String _mobileUrl = "http://192.168.1.34:8000";
+  static const String _mobileUrl = "http://192.168.1.37:8000";
 
   // Get the root URL (used for things like the login endpoint)
   static String get rootUrl {

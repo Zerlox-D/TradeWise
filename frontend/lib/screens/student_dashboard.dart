@@ -4,7 +4,6 @@ import 'login_screen.dart';
 import 'search_mentors.dart';
 import 'trade_screen.dart';
 import '../widgets/dashboard_header_analytics.dart';
-import '../widgets/dashboard_portfolio.dart';
 
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
@@ -16,11 +15,20 @@ class StudentDashboard extends StatefulWidget {
 class _StudentDashboardState extends State<StudentDashboard> {
   Map<String, dynamic>? _userProfile;
   List<dynamic> _mentorLinks = [];
-  List<dynamic> _goals = [];
-  List<dynamic> _holdings = [];
-  List<dynamic> _trades = [];
+  List<dynamic> _goals       = [];
+  List<dynamic> _holdings    = [];
+  List<dynamic> _trades      = [];
   Map<String, double> _livePrices = {};
   bool _isLoading = true;
+
+  // ── Brand palette ──────────────────────────────────────────────────────────
+  static const _bg     = Color(0xFF0A0E21);
+  static const _card   = Color(0xFF151A30);
+  static const _border = Color(0xFF1E2440);
+  static const _green  = Color(0xFF00E676);
+  static const _amber  = Color(0xFFFFB74D);
+  static const _red    = Color(0xFFFF5252);
+  static const _blue   = Color(0xFF42A5F5);
 
   @override
   void initState() {
@@ -31,23 +39,21 @@ class _StudentDashboardState extends State<StudentDashboard> {
   Future<void> _loadDashboardData() async {
     setState(() => _isLoading = true);
     try {
-      // Fetch profile, links, and goals in parallel
-      final profile = await ApiService.getUserProfile();
-      final links = await ApiService.getMentorLinks();
-      final goals = await ApiService.getGoals();
+      final profile  = await ApiService.getUserProfile();
+      final links    = await ApiService.getMentorLinks();
+      final goals    = await ApiService.getGoals();
       final holdings = await ApiService.getHoldings();
-      final trades = await ApiService.getTrades();
+      final trades   = await ApiService.getTrades();
 
       if (mounted) {
         setState(() {
           _userProfile = profile;
           _mentorLinks = links;
-          _holdings = holdings;
-          _goals = goals;
-          _trades = trades;
-          _isLoading = false;
+          _holdings    = holdings;
+          _goals       = goals;
+          _trades      = trades;
+          _isLoading   = false;
         });
-
         _fetchLivePricesForHoldings();
       }
     } catch (e) {
@@ -56,20 +62,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
     }
   }
 
-  // Fetches live prices in the background so the UI doesn't freeze!
   Future<void> _fetchLivePricesForHoldings() async {
     for (var holding in _holdings) {
-      final symbol = holding['symbol'];
+      final symbol   = holding['symbol'];
       final quantity = holding['total_quantity'] ?? 0;
-
-      // Only fetch prices for stocks they actually currently own
       if (symbol != null && quantity > 0) {
         final price = await ApiService.getLivePrice(symbol);
         if (price != null && mounted) {
-          setState(() {
-            _livePrices[symbol] =
-                price; // Update the state with the new live price!
-          });
+          setState(() => _livePrices[symbol] = price);
         }
       }
     }
@@ -79,33 +79,30 @@ class _StudentDashboardState extends State<StudentDashboard> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1D1E33),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          "Logout",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        backgroundColor: _card,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Logout',
+            style:
+                TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: const Text(
-          "Are you sure you want to log out of your account?",
+          'Are you sure you want to log out of your account?',
           style: TextStyle(color: Colors.grey),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context), // Close dialog
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            onPressed: () => Navigator.pop(context),
+            child:
+                const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Close dialog
-              _logout(); // Actually log them out
+              Navigator.pop(context);
+              _logout();
             },
-            child: const Text(
-              "Logout",
-              style: TextStyle(
-                color: Colors.redAccent,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: const Text('Logout',
+                style: TextStyle(
+                    color: _red, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -113,262 +110,447 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   void _logout() async {
-    // 1. Clear the token from your ApiService/Storage
     await ApiService.logout();
-
     if (!mounted) return;
-
-    // 2. Navigate back to Login and completely clear the app's route history
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (route) =>
-          false, // This prevents them from hitting the Android 'Back' button to return to the dashboard
+      (route) => false,
     );
   }
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  Widget _sectionHeader(String title, {Widget? trailing}) {
+    return Row(
+      children: [
+        Container(
+          width: 3,
+          height: 18,
+          decoration: BoxDecoration(
+              color: _green, borderRadius: BorderRadius.circular(2)),
+        ),
+        const SizedBox(width: 10),
+        Text(title,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600)),
+        const Spacer(),
+        if (trailing != null) trailing,
+      ],
+    );
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: Color(0xFF0A0E21),
-        body: Center(child: CircularProgressIndicator(color: Colors.blue)),
+        backgroundColor: _bg,
+        body: Center(child: CircularProgressIndicator(color: _green)),
       );
     }
 
     if (_userProfile == null) {
       return const Scaffold(
-        backgroundColor: Color(0xFF0A0E21),
+        backgroundColor: _bg,
         body: Center(
-          child: Text(
-            "Failed to load profile",
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
+            child: Text('Failed to load profile',
+                style: TextStyle(color: Colors.white))),
       );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E21),
-      appBar: AppBar(
-        title: const Text(
-          "Dashboard",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          TextButton(
-            onPressed: _showLogoutConfirmation,
-            child: const Text(
-              "Logout",
-              style: TextStyle(
-                color: Colors.redAccent,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadDashboardData,
-        color: Colors.blue,
-        backgroundColor: const Color(0xFF1D1E33),
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              DashboardHeaderAnalytics.buildHeader(_userProfile),
-              const SizedBox(height: 30),
-
-              const Text(
-                "Analytics",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+      backgroundColor: _bg,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _loadDashboardData,
+          color: _green,
+          backgroundColor: _card,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Brand bar ────────────────────────────────────────────
+                const Row(
+                  children: [
+                    Icon(Icons.bolt_rounded, color: _green, size: 18),
+                    SizedBox(width: 6),
+                    Text(
+                      'TRADEWISE',
+                      style: TextStyle(
+                        color: _green,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              DashboardHeaderAnalytics.buildAnalyticsSection(
-                _userProfile,
-                _goals,
-                () => DashboardHeaderAnalytics.showGoalsBottomSheet(
-                  context,
+                const SizedBox(height: 24),
+
+                // ── Profile hero ──────────────────────────────────────────
+                _buildProfileHero(),
+                const SizedBox(height: 28),
+
+                // ── Analytics ─────────────────────────────────────────────
+                _sectionHeader('Analytics'),
+                const SizedBox(height: 14),
+                DashboardHeaderAnalytics.buildAnalyticsSection(
+                  _userProfile,
                   _goals,
-                  () => DashboardHeaderAnalytics.showAddGoalDialog(
+                  () => DashboardHeaderAnalytics.showGoalsBottomSheet(
                     context,
-                    _loadDashboardData,
-                  ),
-                  (goal) => DashboardHeaderAnalytics.showEditGoalDialog(
-                    context,
-                    goal,
-                    _loadDashboardData,
-                  ),
-                  (goal) => DashboardHeaderAnalytics.confirmDeleteGoal(
-                    context,
-                    goal,
-                    _loadDashboardData,
+                    _goals,
+                    () => DashboardHeaderAnalytics.showAddGoalDialog(
+                        context, _loadDashboardData),
+                    (goal) => DashboardHeaderAnalytics.showEditGoalDialog(
+                        context, goal, _loadDashboardData),
+                    (goal) => DashboardHeaderAnalytics.confirmDeleteGoal(
+                        context, goal, _loadDashboardData),
                   ),
                 ),
-              ),
+                const SizedBox(height: 28),
 
-              const SizedBox(height: 30),
+                // ── Mentorship ────────────────────────────────────────────
+                _buildStudentSection(),
+                const SizedBox(height: 32),
 
-              _buildStudentSection(),
-            ],
+                // ── Logout — bottom of screen ─────────────────────────────
+                GestureDetector(
+                  onTap: _showLogoutConfirmation,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: _red.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: _red.withOpacity(0.25)),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.logout_rounded, color: _red, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'Logout',
+                          style: TextStyle(
+                            color: _red,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // --- 3B. THE STUDENT SECTION ---
-  Widget _buildStudentSection() {
-    // Check if they have an active or pending mentor link
-    final activeOrPending = _mentorLinks
-        .where(
-          (link) => link['status'] == 'PENDING' || link['status'] == 'ACCEPTED',
-        )
-        .toList();
+  // ── Profile hero ───────────────────────────────────────────────────────────
+  Widget _buildProfileHero() {
+    final balance     = _userProfile!['wallet_balance'] ?? '0.00';
+    final riskProfile = _userProfile!['risk_profile'] ?? 'Moderate';
+    final username    = _userProfile!['username'] ?? '';
+
+    Color riskCol;
+    switch (riskProfile) {
+      case 'Low':
+      case 'Conservative':
+        riskCol = _green;
+        break;
+      case 'Moderate':
+        riskCol = _amber;
+        break;
+      case 'High':
+      case 'Aggressive':
+        riskCol = _red;
+        break;
+      default:
+        riskCol = _blue;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (activeOrPending.isEmpty) ...[
-          // Show "Find Mentor" shortcut if they have no active/pending requests
+        Text('Welcome back,',
+            style: TextStyle(fontSize: 14, color: Colors.grey[500])),
+        const SizedBox(height: 6),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Text(username,
+                  style: const TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: -0.5)),
+            ),
+            const SizedBox(width: 12),
+            // Risk profile badge
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: riskCol.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: riskCol.withOpacity(0.35)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                        color: riskCol, shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(riskProfile,
+                      style: TextStyle(
+                          color: riskCol,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+
+        // Wallet card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0D2137), Color(0xFF0A1628)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Total Balance',
+                  style:
+                      TextStyle(color: Colors.grey[500], fontSize: 13)),
+              const SizedBox(height: 6),
+              Text('₹$balance',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 34,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Student section (mentorship status / find mentor) ─────────────────────
+  Widget _buildStudentSection() {
+    final activeOrPending = _mentorLinks
+        .where((link) =>
+            link['status'] == 'PENDING' || link['status'] == 'ACCEPTED')
+        .toList();
+
+    // ── No mentor yet ──────────────────────────────────────────────────────
+    if (activeOrPending.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader('Mentorship'),
+          const SizedBox(height: 14),
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFF1D1E33),
+              color: _card,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey[800]!),
+              border: Border.all(color: _border),
             ),
             child: Column(
               children: [
-                Icon(Icons.person_search, size: 50, color: Colors.grey[600]),
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: _blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.person_search_rounded,
+                      color: _blue, size: 28),
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   "You don't have a mentor yet.",
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 6),
+                Text(
+                  'Connect with a mentor to unlock guided investing.',
+                  style:
+                      TextStyle(color: Colors.grey[500], fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
+                  child: GestureDetector(
+                    onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => const FindMentorScreen(),
                         ),
-                      ).then(
-                        (_) => _loadDashboardData(),
-                      ); // Refresh when coming back
+                      ).then((_) => _loadDashboardData());
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[600],
-                      shape: RoundedRectangleBorder(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: _green.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
+                        border:
+                            Border.all(color: _green.withOpacity(0.3)),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.search_rounded,
+                              color: _green, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'FIND A MENTOR',
+                            style: TextStyle(
+                              color: _green,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: const Text(
-                      "FIND A MENTOR",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ] else ...[
-          // Show their current status if they have a link
-          const Text(
-            "Mentorship Status",
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1D1E33),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: activeOrPending[0]['status'] == 'ACCEPTED'
-                    ? Colors.green.withOpacity(0.3)
-                    : Colors.orange.withOpacity(0.3),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: activeOrPending[0]['status'] == 'ACCEPTED'
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.orange.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    activeOrPending[0]['status'] == 'ACCEPTED'
-                        ? Icons.handshake
-                        : Icons.hourglass_top,
-                    color: activeOrPending[0]['status'] == 'ACCEPTED'
-                        ? Colors.greenAccent
-                        : Colors.orangeAccent,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        activeOrPending[0]['mentor_name'] ?? "Mentor",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        activeOrPending[0]['status'] == 'ACCEPTED'
-                            ? "Connected & Active"
-                            : "Request Pending",
-                        style: TextStyle(
-                          color: activeOrPending[0]['status'] == 'ACCEPTED'
-                              ? Colors.green[300]
-                              : Colors.orange[300],
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
                   ),
                 ),
               ],
             ),
           ),
         ],
+      );
+    }
+
+    // ── Has mentor link ────────────────────────────────────────────────────
+    final link      = activeOrPending[0];
+    final isAccepted = link['status'] == 'ACCEPTED';
+    final statusCol  = isAccepted ? _green : _amber;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(
+          'Mentorship',
+          trailing: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusCol.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: statusCol.withOpacity(0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                      color: statusCol, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  isAccepted ? 'Active' : 'Pending',
+                  style: TextStyle(
+                      color: statusCol,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: statusCol.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: statusCol.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  isAccepted
+                      ? Icons.handshake_rounded
+                      : Icons.hourglass_top_rounded,
+                  color: statusCol,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      link['mentor_name'] ?? 'Mentor',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isAccepted
+                          ? 'Connected & Active'
+                          : 'Request Pending — awaiting mentor approval',
+                      style: TextStyle(
+                        color: statusCol,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

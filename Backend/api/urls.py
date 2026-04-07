@@ -31,6 +31,7 @@ urlpatterns = [
     path('quiz/unlock/<int:quiz_id>/', views.unlock_student_account, name='unlock_student_account'),
     path('quiz/pending/', views.get_pending_quiz, name='pending-quiz'),
     path('quiz/mentor/', views.get_mentor_quizzes, name='mentor-quizzes'),
+    path('quiz/mentor/<int:quiz_id>/', views.get_mentor_quiz_detail, name='mentor-quiz-detail'),
     path('quiz/student/', views.get_student_quizzes, name='student-quizzes'),
     path('quiz/student/<int:quiz_id>/', views.get_student_quiz_detail, name='student-quiz-detail'),
 ]

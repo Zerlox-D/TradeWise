@@ -888,7 +888,8 @@ def submit_student_quiz(request, quiz_id):
     # 3. Grade the submitted answers
     submitted_answers = request.data.get('answers', request.data)
     quiz.last_submitted_answers = submitted_answers
-    quiz.save()
+    quiz.last_attempt_at = timezone.now()
+    quiz.save(update_fields=['last_submitted_answers', 'last_attempt_at'])
     questions = quiz.questions.all()
     
     quiz_results = []
@@ -999,13 +1000,12 @@ def get_pending_quiz(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_mentor_quizzes(request):
-    """Fetches all active quizzes assigned by this mentor."""
+    """Fetches quiz history assigned by this mentor (excluding drafts)."""
     mentor = request.user
     if mentor.role != 'MENTOR':
         return Response({"error": "Unauthorized"}, status=403)
-        
-    # We exclude ARCHIVED so the dashboard stays clean!
-    quizzes = Quiz.objects.filter(mentor=mentor).exclude(status__in=['DRAFT', 'ARCHIVED']).order_by('-created_at')
+
+    quizzes = Quiz.objects.filter(mentor=mentor).exclude(status='DRAFT').order_by('-created_at')
     
     data = []
     for q in quizzes:
@@ -1013,10 +1013,55 @@ def get_mentor_quizzes(request):
             'id': q.id,
             'student_name': q.student.username,
             'status': q.status,
-            'created_at': q.created_at.isoformat()
+            'created_at': q.created_at.isoformat(),
+            'last_attempt_at': q.last_attempt_at.isoformat() if q.last_attempt_at else None,
+            'cooldown_ends_at': q.cooldown_ends_at.isoformat() if q.cooldown_ends_at else None,
+            'has_attempt': bool(q.last_submitted_answers)
         })
         
     return Response(data, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_mentor_quiz_detail(request, quiz_id):
+    """Fetches a quiz detail for mentor review with latest student attempt."""
+    mentor = request.user
+
+    if mentor.role != 'MENTOR':
+        return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+
+    quiz = get_object_or_404(Quiz, id=quiz_id, mentor=mentor)
+
+    # Only show correct answers and explanations if student has attempted the quiz
+    has_attempt = bool(quiz.last_submitted_answers)
+
+    questions_data = []
+    for q in quiz.questions.all():
+        question_dict = {
+            'id': q.id,
+            'question_text': q.question_text,
+            'option_a': q.option_a,
+            'option_b': q.option_b,
+            'option_c': q.option_c,
+            'option_d': q.option_d,
+        }
+        # Only include answers and explanations if student has attempted the quiz
+        if has_attempt:
+            question_dict['correct_answer'] = q.correct_answer
+            question_dict['explanation'] = q.explanation
+
+        questions_data.append(question_dict)
+
+    return Response({
+        'quiz_id': quiz.id,
+        'student_name': quiz.student.username,
+        'status': quiz.status,
+        'created_at': quiz.created_at.isoformat(),
+        'last_attempt_at': quiz.last_attempt_at.isoformat() if quiz.last_attempt_at else None,
+        'cooldown_ends_at': quiz.cooldown_ends_at.isoformat() if quiz.cooldown_ends_at else None,
+        'last_submitted_answers': quiz.last_submitted_answers or {},
+        'questions': questions_data,
+    }, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

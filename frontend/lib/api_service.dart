@@ -496,13 +496,14 @@ class ApiService {
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Token $token', // Use 'Bearer $token' if you are using JWT!
+          'Authorization':
+              'Token $token', // Use 'Bearer $token' if you are using JWT!
         },
       );
 
       if (response.statusCode == 201) {
         // Successfully drafted! Returns the quiz_id and the 5 questions.
-        return jsonDecode(response.body); 
+        return jsonDecode(response.body);
       } else {
         print("Failed to draft AI Quiz. Status: ${response.statusCode}");
         print("Error Details: ${response.body}");
@@ -514,7 +515,10 @@ class ApiService {
     }
   }
 
-  static Future<bool> publishMentorQuiz(int quizId, List<dynamic> questions) async {
+  static Future<bool> publishMentorQuiz(
+    int quizId,
+    List<dynamic> questions,
+  ) async {
     final url = Uri.parse("${AppConstants.baseUrl}/quiz/publish/$quizId/");
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(AppConstants.tokenKey);
@@ -527,7 +531,8 @@ class ApiService {
           'Authorization': 'Token $token',
         },
         body: jsonEncode({
-          'questions': questions, // Send the edited array straight back to Django
+          'questions':
+              questions, // Send the edited array straight back to Django
         }),
       );
 
@@ -557,12 +562,12 @@ class ApiService {
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Token $token', 
+          'Authorization': 'Token $token',
         },
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body); 
+        return jsonDecode(response.body);
       }
       return null;
     } catch (e) {
@@ -571,7 +576,10 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>?> submitStudentQuiz(int quizId, Map<String, String> answers) async {
+  static Future<Map<String, dynamic>?> submitStudentQuiz(
+    int quizId,
+    Map<String, String> answers,
+  ) async {
     final url = Uri.parse("${AppConstants.baseUrl}/quiz/submit/$quizId/");
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(AppConstants.tokenKey);
@@ -587,7 +595,9 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body); // Returns the PASSED/FAILED status and results array!
+        return jsonDecode(
+          response.body,
+        ); // Returns the PASSED/FAILED status and results array!
       } else {
         print("Failed to submit quiz. Status: ${response.statusCode}");
         print("Error Details: ${response.body}");
@@ -605,7 +615,27 @@ class ApiService {
     final token = prefs.getString(AppConstants.tokenKey);
 
     try {
-      final response = await http.get(url, headers: {'Authorization': 'Token $token'});
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Token $token'},
+      );
+      if (response.statusCode == 200) return jsonDecode(response.body);
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getMentorQuizDetail(int quizId) async {
+    final url = Uri.parse("${AppConstants.baseUrl}/quiz/mentor/$quizId/");
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(AppConstants.tokenKey);
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Token $token'},
+      );
       if (response.statusCode == 200) return jsonDecode(response.body);
       return null;
     } catch (e) {
@@ -619,7 +649,10 @@ class ApiService {
     final token = prefs.getString(AppConstants.tokenKey);
 
     try {
-      final response = await http.post(url, headers: {'Authorization': 'Token $token'});
+      final response = await http.post(
+        url,
+        headers: {'Authorization': 'Token $token'},
+      );
       return response.statusCode == 200;
     } catch (e) {
       return false;
@@ -632,7 +665,10 @@ class ApiService {
     final token = prefs.getString(AppConstants.tokenKey);
 
     try {
-      final response = await http.get(url, headers: {'Authorization': 'Token $token'});
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Token $token'},
+      );
       if (response.statusCode == 200) return jsonDecode(response.body);
       return null;
     } catch (e) {
@@ -646,7 +682,10 @@ class ApiService {
     final token = prefs.getString(AppConstants.tokenKey);
 
     try {
-      final response = await http.get(url, headers: {'Authorization': 'Token $token'});
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Token $token'},
+      );
       if (response.statusCode == 200) return jsonDecode(response.body);
       return null;
     } catch (e) {
