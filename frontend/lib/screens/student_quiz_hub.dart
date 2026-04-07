@@ -140,15 +140,10 @@ class _StudentQuizHubState extends State<StudentQuizHub> {
                     const Text('My Assessments',
                         style: TextStyle(
                             color: Colors.white,
-                            fontSize: 20,
+                            fontSize: 22,
                             fontWeight: FontWeight.w700,
                             letterSpacing: -0.3)),
                     const SizedBox(height: 2),
-                    Text(
-                      '${_quizzes.length} assessment${_quizzes.length != 1 ? 's' : ''} assigned',
-                      style: TextStyle(
-                          color: Colors.grey[500], fontSize: 12),
-                    ),
                   ],
                 ),
               ),
