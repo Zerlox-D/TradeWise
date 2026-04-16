@@ -1,0 +1,689 @@
+import 'package:flutter/material.dart';
+import '../api_service.dart';
+
+class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  Map<String, dynamic>? _userProfile;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfile();
+  }
+
+  Future<void> _fetchProfile() async {
+    try {
+      final profileData = await ApiService.getUserProfile(); 
+      setState(() {
+        _userProfile = profileData;
+        _isLoading = false;
+      });
+    } catch (e) {
+      // 👇 Catch the error, stop the spinner, and save the message
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+      print("🚨 PROFILE FETCH ERROR: $e"); // Prints to your debug console
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_errorMessage != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Dashboard")),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              "Something went wrong:\n$_errorMessage",
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.red, fontSize: 16),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_userProfile == null) {
+      return const Scaffold(body: Center(child: Text("Error loading profile.")));
+    }
+
+    final isMentor = _userProfile!['role'] == 'MENTOR';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(isMentor ? "Mentor Dashboard" : "Investor Dashboard"),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- SHARED HEADER ---
+            Text("Welcome, ${_userProfile!['username']}!", 
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Text("Wallet Balance: ₹${_userProfile!['wallet_balance']}", 
+                style: const TextStyle(fontSize: 18, color: Colors.green)),
+            const Divider(height: 40, thickness: 2),
+
+            // --- ROLE-SPECIFIC RENDER (Like Conditional Rendering in React) ---
+            if (isMentor) 
+              _buildMentorView()
+            else 
+              _buildInvestorView(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- MENTOR SPECIFIC UI ---
+  Widget _buildMentorView() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Mentor Controls", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        ListTile(
+          leading: const Icon(Icons.inbox, color: Colors.orange),
+          title: const Text("Pending Trade Requests"),
+          subtitle: const Text("Review Red-Light trades from your students."),
+          trailing: const Icon(Icons.arrow_forward_ios),
+          onTap: () {
+            // TODO: Route to Pending Requests Screen
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.people, color: Colors.blue),
+          title: const Text("My Students"),
+          subtitle: const Text("View portfolios and discipline scores."),
+          trailing: const Icon(Icons.arrow_forward_ios),
+          onTap: () {
+            // TODO: Route to Students List
+          },
+        ),
+      ],
+    );
+  }
+
+  // --- INVESTOR SPECIFIC UI ---
+  Widget _buildInvestorView() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("My Portfolio", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        // Placeholder for the fl_chart or holdings list we discussed
+        Container(
+          height: 150,
+          width: double.infinity,
+          color: Colors.grey[200],
+          child: const Center(child: Text("Portfolio Graph Goes Here")),
+        ),
+        const SizedBox(height: 20),
+        ElevatedButton.icon(
+          onPressed: () {
+            // TODO: Route to the Buy/Sell Screen
+          },
+          icon: const Icon(Icons.show_chart),
+          label: const Text("Place a Trade"),
+          style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+        )
+      ],
+    );
+  }
+}
+
+
+
+
+
+
+
+
+import 'package:flutter/material.dart';
+import '../api_service.dart';
+import 'search_mentors.dart';
+
+class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  Map<String, dynamic>? _userProfile;
+  List<dynamic> _mentorLinks = [];
+  List<dynamic> _goals = []; // Added to store the goals!
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    setState(() => _isLoading = true);
+    try {
+      // Fetch profile, links, and goals in parallel
+      final profile = await ApiService.getUserProfile();
+      final links = await ApiService.getMentorLinks();
+      final goals = await ApiService.getGoals(); 
+      
+      if (mounted) {
+        setState(() {
+          _userProfile = profile;
+          _mentorLinks = links;
+          _goals = goals;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print("Dashboard Error: $e");
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // Action for mentors to accept/reject
+  void _handleRequest(int linkId, String action) async {
+    // Calls the ApiService function we added earlier
+    bool success = await ApiService.respondToRequest(linkId, action);
+    
+    if (success) {
+      _loadDashboardData(); // Refresh the dashboard to move them from Pending to Active!
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to $action request. Please try again."),
+          backgroundColor: Colors.red[700],
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0A0E21),
+        body: Center(child: CircularProgressIndicator(color: Colors.blue)),
+      );
+    }
+
+    if (_userProfile == null) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0A0E21),
+        body: Center(child: Text("Failed to load profile", style: TextStyle(color: Colors.white))),
+      );
+    }
+
+    final isMentor = _userProfile!['role'] == 'MENTOR';
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0E21),
+      appBar: AppBar(
+        title: const Text("Dashboard", style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        // Removed the ProfileIconButton as requested!
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadDashboardData,
+        color: Colors.blue,
+        backgroundColor: const Color(0xFF1D1E33),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 30),
+              
+              const Text("Analytics", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+              const SizedBox(height: 16),
+              _buildAnalyticsSection(),
+              
+              const SizedBox(height: 30),
+
+              // Placeholder for the Portfolio (Trades & Holdings) we will build next
+              _buildPortfolioPlaceholder(),
+              const SizedBox(height: 30),
+
+              if (isMentor) _buildMentorSection() else _buildStudentSection(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- 1. THE NEW HEADER ---
+  Widget _buildHeader() {
+    // Providing default fallback values just in case the backend hasn't populated them yet
+    final balance = _userProfile!['wallet_balance'] ?? "0.00";
+    final riskProfile = _userProfile!['risk_profile'] ?? "Moderate";
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Welcome back,",
+                  style: TextStyle(fontSize: 16, color: Colors.grey[400]),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _userProfile!['username'],
+                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ],
+            ),
+            // Risk Profile Badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.blue[300]!),
+              ),
+              child: Text(
+                riskProfile,
+                style: TextStyle(color: Colors.blue[300], fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        
+        // Wallet Balance Card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.green[600]!, Colors.teal[600]!],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(color: Colors.green.withOpacity(0.2), blurRadius: 15, spreadRadius: 2),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Total Balance", style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 16)),
+              const SizedBox(height: 8),
+              Text(
+                "\$$balance", // Add your local currency symbol here if needed!
+                style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- 2. THE NEW ANALYTICS SECTION ---
+  Widget _buildAnalyticsSection() {
+    final disciplineScore = _userProfile!['discipline_score'] ?? 0;
+
+    return Row(
+      children: [
+        // Discipline Score Card
+        Expanded(
+          flex: 2,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1D1E33),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                const Text("Discipline", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                const SizedBox(height: 12),
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      height: 70,
+                      width: 70,
+                      child: CircularProgressIndicator(
+                        value: disciplineScore / 100, // Converts 85 to 0.85
+                        strokeWidth: 8,
+                        backgroundColor: Colors.grey[800],
+                        color: _getScoreColor(disciplineScore),
+                        strokeCap: StrokeCap.round,
+                      ),
+                    ),
+                    Text(
+                      "$disciplineScore",
+                      style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        
+        // Goals Summary Card
+        Expanded(
+          flex: 3,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            height: 135, // Match the height of the discipline card
+            decoration: BoxDecoration(
+              color: const Color(0xFF1D1E33),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text("Active Goals", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                const SizedBox(height: 8),
+                Text(
+                  "${_goals.length}",
+                  style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _goals.isEmpty ? "Tap to set goals" : "On track for ${_goals.length} targets",
+                  style: TextStyle(color: Colors.blue[300], fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Helper function to color the discipline score dynamically
+  Color _getScoreColor(int score) {
+    if (score >= 80) return Colors.greenAccent;
+    if (score >= 50) return Colors.orangeAccent;
+    return Colors.redAccent;
+  }
+
+  // --- 3A. THE MENTOR SECTION ---
+  Widget _buildMentorSection() {
+    // Separate links into pending requests and active students
+    final pendingRequests = _mentorLinks.where((link) => link['status'] == 'PENDING').toList();
+    final activeStudents = _mentorLinks.where((link) => link['status'] == 'ACCEPTED').toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 1. The Invite Code Card
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1D1E33),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.blue.withOpacity(0.3)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Your Invite Code", style: TextStyle(color: Colors.grey[400], fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Text(
+                    "${_userProfile!['id'] + 130200}", // Your custom math logic!
+                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.share, color: Colors.blue[400]),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 30),
+
+        // 2. Pending Requests List
+        if (pendingRequests.isNotEmpty) ...[
+          Text("Pending Requests (${pendingRequests.length})", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+          const SizedBox(height: 16),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: pendingRequests.length,
+            itemBuilder: (context, index) {
+              final req = pendingRequests[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1D1E33),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.orange.withOpacity(0.2),
+                      child: const Icon(Icons.person_add, color: Colors.orange),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(req['student_name'] ?? "Investor", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                          Text("Wants to connect", style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    // Reject Button
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.redAccent),
+                      onPressed: () => _handleRequest(req['id'], 'reject'),
+                    ),
+                    // Accept Button
+                    IconButton(
+                      icon: const Icon(Icons.check_circle, color: Colors.greenAccent, size: 28),
+                      onPressed: () => _handleRequest(req['id'], 'accept'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+        ],
+
+        // 3. Active Students List
+        Text("My Investors (${activeStudents.length})", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+        const SizedBox(height: 16),
+        
+        if (activeStudents.isEmpty)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(30.0),
+              child: Text("You don't have any connected investors yet.", style: TextStyle(color: Colors.grey[500])),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: activeStudents.length,
+            itemBuilder: (context, index) {
+              final student = activeStudents[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1D1E33),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.blue.withOpacity(0.2),
+                      child: const Icon(Icons.person, color: Colors.blue),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        student['student_name'] ?? "Investor",
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    Icon(Icons.chevron_right, color: Colors.grey[600]),
+                  ],
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  // --- 3B. THE STUDENT SECTION ---
+  Widget _buildStudentSection() {
+    // Check if they have an active or pending mentor link
+    final activeOrPending = _mentorLinks.where((link) => link['status'] == 'PENDING' || link['status'] == 'ACCEPTED').toList();
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (activeOrPending.isEmpty) ...[
+          // Show "Find Mentor" shortcut if they have no active/pending requests
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1D1E33),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey[800]!),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.person_search, size: 50, color: Colors.grey[600]),
+                const SizedBox(height: 16),
+                const Text(
+                  "You don't have a mentor yet.",
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const FindMentorScreen()))
+                          .then((_) => _loadDashboardData()); // Refresh when coming back
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[600],
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text("FIND A MENTOR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else ...[
+          // Show their current status if they have a link
+          const Text("Mentorship Status", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1D1E33),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: activeOrPending[0]['status'] == 'ACCEPTED' ? Colors.green.withOpacity(0.3) : Colors.orange.withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: activeOrPending[0]['status'] == 'ACCEPTED' ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    activeOrPending[0]['status'] == 'ACCEPTED' ? Icons.handshake : Icons.hourglass_top,
+                    color: activeOrPending[0]['status'] == 'ACCEPTED' ? Colors.greenAccent : Colors.orangeAccent,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        activeOrPending[0]['mentor_name'] ?? "Mentor",
+                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        activeOrPending[0]['status'] == 'ACCEPTED' ? "Connected & Active" : "Request Pending",
+                        style: TextStyle(
+                          color: activeOrPending[0]['status'] == 'ACCEPTED' ? Colors.green[300] : Colors.orange[300], 
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ]
+      ],
+    );
+  }
+
+  Widget _buildPortfolioPlaceholder() {
+    return const SizedBox.shrink(); // A temporary invisible box
+  }
+
+}
