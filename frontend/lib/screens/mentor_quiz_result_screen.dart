@@ -21,8 +21,6 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
 
   late final AnimationController _bannerAnimController;
   late final Animation<double> _bannerAnim;
-
-  // ── Palette ────────────────────────────────────────────────────────────────
   static const _bg = Color(0xFF0A0E21);
   static const _card = Color(0xFF151A30);
   static const _border = Color(0xFF1E2440);
@@ -165,7 +163,6 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
     );
   }
 
-  // ── Top bar ────────────────────────────────────────────────────────────────
   Widget _buildTopBar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
@@ -190,7 +187,8 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
                     size: 16,
                   ),
                 ),
-              ),            ],
+              ),
+            ],
           ),
           const SizedBox(height: 20),
           Row(
@@ -199,9 +197,9 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: _amber.withOpacity(0.12),
+                  color: _amber.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _amber.withOpacity(0.3)),
+                  border: Border.all(color: _amber.withValues(alpha: 0.3)),
                 ),
                 child: const Icon(Icons.quiz_rounded, color: _amber, size: 22),
               ),
@@ -236,10 +234,10 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: _statusColor(_status).withOpacity(0.1),
+                    color: _statusColor(_status).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: _statusColor(_status).withOpacity(0.3),
+                      color: _statusColor(_status).withValues(alpha: 0.3),
                     ),
                   ),
                   child: Text(
@@ -261,7 +259,6 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
     );
   }
 
-  // ── Result banner ──────────────────────────────────────────────────────────
   Widget _buildResultBanner(bool hasPassed, bool hasFailed) {
     final col = hasPassed
         ? _green
@@ -278,9 +275,9 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
       margin: const EdgeInsets.fromLTRB(24, 16, 24, 0),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: col.withOpacity(0.08),
+        color: col.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: col.withOpacity(0.35)),
+        border: Border.all(color: col.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
@@ -288,7 +285,7 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: col.withOpacity(0.15),
+              color: col.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: col, size: 24),
@@ -328,7 +325,6 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
     );
   }
 
-  // ── Empty state ────────────────────────────────────────────────────────────
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -338,7 +334,7 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: _blue.withOpacity(0.1),
+              color: _blue.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.inbox_rounded, color: _blue, size: 32),
@@ -362,7 +358,6 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
     );
   }
 
-  // ── Question card ──────────────────────────────────────────────────────────
   Widget _buildQuestionCard(int index) {
     final q = _questions[index];
     final qId = q['id'].toString();
@@ -382,7 +377,7 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
         color: _card,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isWrong ? _red.withOpacity(0.4) : _border,
+          color: isWrong ? _red.withValues(alpha: 0.4) : _border,
           width: isWrong ? 1.5 : 1,
         ),
       ),
@@ -405,9 +400,9 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
                   width: 30,
                   height: 30,
                   decoration: BoxDecoration(
-                    color: _amber.withOpacity(0.15),
+                    color: _amber.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _amber.withOpacity(0.3)),
+                    border: Border.all(color: _amber.withValues(alpha: 0.3)),
                   ),
                   child: Center(
                     child: Text(
@@ -438,13 +433,13 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
                     ),
                     decoration: BoxDecoration(
                       color: gradingData['is_correct']
-                          ? _green.withOpacity(0.12)
-                          : _red.withOpacity(0.12),
+                          ? _green.withValues(alpha: 0.12)
+                          : _red.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: gradingData['is_correct']
-                            ? _green.withOpacity(0.3)
-                            : _red.withOpacity(0.3),
+                            ? _green.withValues(alpha: 0.3)
+                            : _red.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Text(
@@ -550,7 +545,6 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
     );
   }
 
-  // ── Option row ─────────────────────────────────────────────────────────────
   Widget _buildOption(
     String questionId,
     String letter,
@@ -569,12 +563,12 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
 
     if (gradingData != null) {
       if (isCorrect) {
-        borderCol = _green.withOpacity(0.5);
-        bgCol = _green.withOpacity(0.08);
+        borderCol = _green.withValues(alpha: 0.5);
+        bgCol = _green.withValues(alpha: 0.08);
         letterCol = _green;
       } else if (isWrongPick) {
-        borderCol = _red.withOpacity(0.5);
-        bgCol = _red.withOpacity(0.08);
+        borderCol = _red.withValues(alpha: 0.5);
+        bgCol = _red.withValues(alpha: 0.08);
         letterCol = _red;
       } else {
         borderCol = _border;
@@ -582,8 +576,10 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
         letterCol = Colors.grey.shade600;
       }
     } else {
-      borderCol = isSelected ? accentColor.withOpacity(0.5) : _border;
-      bgCol = isSelected ? accentColor.withOpacity(0.08) : Colors.transparent;
+      borderCol = isSelected ? accentColor.withValues(alpha: 0.5) : _border;
+      bgCol = isSelected
+          ? accentColor.withValues(alpha: 0.08)
+          : Colors.transparent;
       letterCol = isSelected ? accentColor : Colors.grey.shade600;
     }
 
@@ -634,7 +630,6 @@ class _MentorQuizResultScreenState extends State<MentorQuizResultScreen>
     );
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
   Color _statusColor(String status) {
     switch (status) {
       case 'PASSED':

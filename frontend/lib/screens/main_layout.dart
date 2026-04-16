@@ -1,11 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import '../api_service.dart';
 import 'mentor_quiz_hub.dart';
 import 'student_dashboard.dart';
 import 'mentor_dashboard.dart';
 import 'student_quiz_hub.dart';
-import 'student_quiz_screen.dart';
 import 'trade_screen.dart';
 import 'portfolio_screen.dart';
 import 'home_screen.dart';
@@ -40,21 +39,16 @@ class _MainLayoutState extends State<MainLayout> {
       bool hasQuiz = false;
       bool hasMentorAlerts = false;
       bool passedQuizzesAlert = false;
-      
+
       if (profile['role'] == 'MENTOR') {
-          // Read the new flag we just added to Django!
-          hasMentorAlerts = profile['has_pending_mentor_actions'] ?? false;
-          passedQuizzesAlert = profile['has_passed_quizzes'] ?? false;
-
-          print("DEBUG: Django sent has_passed_quizzes = ${profile['has_passed_quizzes']}");
-
-        } else {
-          // Student logic
-          final quizData = await ApiService.getStudentPendingQuiz();
-          if (quizData != null && quizData['quiz_id'] != null) {
-            hasQuiz = true;
-          }
+        hasMentorAlerts = profile['has_pending_mentor_actions'] ?? false;
+        passedQuizzesAlert = profile['has_passed_quizzes'] ?? false;
+      } else {
+        final quizData = await ApiService.getStudentPendingQuiz();
+        if (quizData != null && quizData['quiz_id'] != null) {
+          hasQuiz = true;
         }
+      }
 
       if (mounted) {
         setState(() {
@@ -101,9 +95,8 @@ class _MainLayoutState extends State<MainLayout> {
         ? const MentorDashboard()
         : const StudentDashboard();
 
-    // NEW logic: The Quiz/Assessment Tab
     Widget assessmentScreen = _userProfile?['role'] == 'MENTOR'
-        ? MentorQuizHub() 
+        ? MentorQuizHub()
         : StudentQuizHub();
 
     final List<Widget> screens = [
@@ -135,7 +128,7 @@ class _MainLayoutState extends State<MainLayout> {
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF00E676).withOpacity(0.35),
+            color: const Color(0xFF00E676).withValues(alpha: 0.35),
             blurRadius: 18,
             spreadRadius: 1,
             offset: const Offset(0, 4),
@@ -189,8 +182,9 @@ class _MainLayoutState extends State<MainLayout> {
                 activeIcon: Icons.assignment, // Changed Icon!
                 label: 'Assessments', // Changed Label!
                 index: 2,
-                showBadge: _userProfile?['role'] != 'MENTOR' && _hasPendingQuiz || 
-                           (_userProfile?['role'] == 'MENTOR' && _hasPassedQuizzes),
+                showBadge:
+                    _userProfile?['role'] != 'MENTOR' && _hasPendingQuiz ||
+                    (_userProfile?['role'] == 'MENTOR' && _hasPassedQuizzes),
               ),
             ),
             Expanded(
@@ -199,7 +193,9 @@ class _MainLayoutState extends State<MainLayout> {
                 activeIcon: Icons.person,
                 label: 'Profile',
                 index: 3,
-                showBadge: _userProfile?['role'] == 'MENTOR' && _hasMentorNotifications,
+                showBadge:
+                    _userProfile?['role'] == 'MENTOR' &&
+                    _hasMentorNotifications,
               ),
             ),
           ],
@@ -224,9 +220,9 @@ class _MainLayoutState extends State<MainLayout> {
       onTap: () {
         setState(() {
           _selectedIndex = index;
-          
+
           // YOUR FIX: Clear the dots the moment they open the tab!
-          
+
           // 1. If a Student opens the Assessment tab (Index 2), clear the dot
           if (index == 2 && _userProfile?['role'] != 'MENTOR') {
             _hasPendingQuiz = false;
@@ -235,7 +231,7 @@ class _MainLayoutState extends State<MainLayout> {
           if (index == 2 && _userProfile?['role'] == 'MENTOR') {
             _hasPassedQuizzes = false;
           }
-          
+
           // 2. If a Mentor opens the Profile/Dashboard tab (Index 3), clear the dot
           if (index == 3 && _userProfile?['role'] == 'MENTOR') {
             _hasMentorNotifications = false;

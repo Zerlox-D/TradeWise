@@ -212,10 +212,10 @@ class _StudentPortfolioScreenState extends State<StudentPortfolioScreen> {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: riskColor.withOpacity(0.12),
+                                  color: riskColor.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: riskColor.withOpacity(0.3),
+                                    color: riskColor.withValues(alpha: 0.3),
                                   ),
                                 ),
                                 child: Row(
@@ -258,11 +258,16 @@ class _StudentPortfolioScreenState extends State<StudentPortfolioScreen> {
                                           100,
                                       strokeWidth: 6,
                                       backgroundColor: const Color(0xFF1E2440),
-                                      color: (_portfolioData!['discipline_score'] ?? 0) >= 75
-                                              ? const Color(0xFF00E676)
-                                              : (_portfolioData!['discipline_score'] ?? 0) >= 40
-                                              ? const Color(0xFFFFB74D)
-                                              : const Color(0xFFFF5252),
+                                      color:
+                                          (_portfolioData!['discipline_score'] ??
+                                                  0) >=
+                                              75
+                                          ? const Color(0xFF00E676)
+                                          : (_portfolioData!['discipline_score'] ??
+                                                    0) >=
+                                                40
+                                          ? const Color(0xFFFFB74D)
+                                          : const Color(0xFFFF5252),
                                     ),
                                   ),
                                   Text(
@@ -317,7 +322,9 @@ class _StudentPortfolioScreenState extends State<StudentPortfolioScreen> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF00E676).withOpacity(0.1),
+                            color: const Color(
+                              0xFF00E676,
+                            ).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -387,8 +394,8 @@ class _StudentPortfolioScreenState extends State<StudentPortfolioScreen> {
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       colors: [
-                                        symbolColor.withOpacity(0.2),
-                                        symbolColor.withOpacity(0.05),
+                                        symbolColor.withValues(alpha: 0.2),
+                                        symbolColor.withValues(alpha: 0.05),
                                       ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
@@ -475,7 +482,9 @@ class _StudentPortfolioScreenState extends State<StudentPortfolioScreen> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF00E676).withOpacity(0.1),
+                            color: const Color(
+                              0xFF00E676,
+                            ).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Text(
@@ -562,8 +571,8 @@ class _StudentPortfolioScreenState extends State<StudentPortfolioScreen> {
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       colors: [
-                                        symbolColor.withOpacity(0.2),
-                                        symbolColor.withOpacity(0.05),
+                                        symbolColor.withValues(alpha: 0.2),
+                                        symbolColor.withValues(alpha: 0.05),
                                       ],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
@@ -613,9 +622,9 @@ class _StudentPortfolioScreenState extends State<StudentPortfolioScreen> {
                                       ),
                                       const SizedBox(height: 3),
                                       Text(
-                                        _formatDate(trade['created_at']), 
+                                        _formatDate(trade['created_at']),
                                         style: TextStyle(
-                                          color: Colors.grey[500], 
+                                          color: Colors.grey[500],
                                           fontSize: 11,
                                         ),
                                       ),
@@ -648,7 +657,9 @@ class _StudentPortfolioScreenState extends State<StudentPortfolioScreen> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: statusColor.withOpacity(0.15),
+                                        color: statusColor.withValues(
+                                          alpha: 0.15,
+                                        ),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(

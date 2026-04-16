@@ -20,13 +20,11 @@ class _LoginScreenState extends State<LoginScreen>
   bool _obscurePassword = true;
   AnimationController? _animationController;
   Animation<double>? _fadeAnimation;
-
-  // ── Brand palette ──────────────────────────────────────────────────────────
-  static const _bg     = Color(0xFF0A0E21);
-  static const _card   = Color(0xFF151A30);
+  static const _bg = Color(0xFF0A0E21);
+  static const _card = Color(0xFF151A30);
   static const _border = Color(0xFF1E2440);
-  static const _green  = Color(0xFF00E676);
-  static const _red    = Color(0xFFFF5252);
+  static const _green = Color(0xFF00E676);
+  static const _red = Color(0xFFFF5252);
 
   @override
   void initState() {
@@ -36,8 +34,7 @@ class _LoginScreenState extends State<LoginScreen>
       duration: const Duration(milliseconds: 900),
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-          parent: _animationController!, curve: Curves.easeOut),
+      CurvedAnimation(parent: _animationController!, curve: Curves.easeOut),
     );
     _animationController!.forward();
   }
@@ -69,8 +66,10 @@ class _LoginScreenState extends State<LoginScreen>
             children: [
               Icon(Icons.check_circle_outline_rounded, color: _green, size: 18),
               SizedBox(width: 10),
-              Text('Login successful! Welcome back.',
-                  style: TextStyle(color: Colors.white)),
+              Text(
+                'Login successful! Welcome back.',
+                style: TextStyle(color: Colors.white),
+              ),
             ],
           ),
           backgroundColor: _card,
@@ -92,8 +91,10 @@ class _LoginScreenState extends State<LoginScreen>
             children: [
               Icon(Icons.error_outline_rounded, color: _red, size: 18),
               SizedBox(width: 10),
-              Text('Login failed. Check your username and password.',
-                  style: TextStyle(color: Colors.white)),
+              Text(
+                'Login failed. Check your username and password.',
+                style: TextStyle(color: Colors.white),
+              ),
             ],
           ),
           backgroundColor: _card,
@@ -129,19 +130,23 @@ class _LoginScreenState extends State<LoginScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 56),
-
-            // ── Brand mark ────────────────────────────────────────────────
             Center(
               child: Column(
                 children: [
-                  // Icon container
                   Container(
                     width: 72,
                     height: 72,
                     decoration: BoxDecoration(
                       color: const Color.fromARGB(255, 4, 20, 13),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color.fromARGB(255, 4, 196, 103).withOpacity(0.3)),
+                      border: Border.all(
+                        color: const Color.fromARGB(
+                          255,
+                          4,
+                          196,
+                          103,
+                        ).withValues(alpha: 0.3),
+                      ),
                     ),
                     child: const Icon(
                       Icons.bolt_rounded,
@@ -173,8 +178,6 @@ class _LoginScreenState extends State<LoginScreen>
             ),
 
             const SizedBox(height: 56),
-
-            // ── Page heading ──────────────────────────────────────────────
             Row(
               children: [
                 Container(
@@ -207,8 +210,6 @@ class _LoginScreenState extends State<LoginScreen>
             ),
 
             const SizedBox(height: 32),
-
-            // ── Username field ────────────────────────────────────────────
             _fieldLabel('Username'),
             const SizedBox(height: 8),
             TextFormField(
@@ -227,30 +228,29 @@ class _LoginScreenState extends State<LoginScreen>
             ),
 
             const SizedBox(height: 20),
-
-            // ── Password field ────────────────────────────────────────────
             _fieldLabel('Password'),
             const SizedBox(height: 8),
             TextFormField(
               controller: _passwordController,
               obscureText: _obscurePassword,
               style: const TextStyle(color: Colors.white, fontSize: 15),
-              decoration: _inputDecoration(
-                hint: 'Enter your password',
-                prefixIcon: Icons.lock_outline_rounded,
-              ).copyWith(
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    color: Colors.grey[600],
-                    size: 20,
+              decoration:
+                  _inputDecoration(
+                    hint: 'Enter your password',
+                    prefixIcon: Icons.lock_outline_rounded,
+                  ).copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: Colors.grey[600],
+                        size: 20,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                    ),
                   ),
-                  onPressed: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
-                ),
-              ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter your password';
@@ -260,22 +260,18 @@ class _LoginScreenState extends State<LoginScreen>
             ),
 
             const SizedBox(height: 36),
-
-            // ── Login button ──────────────────────────────────────────────
             GestureDetector(
               onTap: _isLoading ? null : _handleLogin,
               child: Container(
                 width: double.infinity,
                 height: 54,
                 decoration: BoxDecoration(
-                  color: _isLoading
-                      ? _border
-                      : _green.withOpacity(0.15),
+                  color: _isLoading ? _border : _green.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: _isLoading
                         ? Colors.transparent
-                        : _green.withOpacity(0.4),
+                        : _green.withValues(alpha: 0.4),
                   ),
                 ),
                 child: Center(
@@ -284,7 +280,9 @@ class _LoginScreenState extends State<LoginScreen>
                           height: 22,
                           width: 22,
                           child: CircularProgressIndicator(
-                              color: _green, strokeWidth: 2.5),
+                            color: _green,
+                            strokeWidth: 2.5,
+                          ),
                         )
                       : const Text(
                           'LOGIN',
@@ -300,8 +298,6 @@ class _LoginScreenState extends State<LoginScreen>
             ),
 
             const SizedBox(height: 28),
-
-            // ── Sign up link ──────────────────────────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -313,7 +309,8 @@ class _LoginScreenState extends State<LoginScreen>
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => const SignupScreen()),
+                      builder: (context) => const SignupScreen(),
+                    ),
                   ),
                   child: const Text(
                     'Sign Up',
@@ -334,7 +331,6 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
   Widget _fieldLabel(String label) {
     return Text(
       label,
@@ -356,8 +352,7 @@ class _LoginScreenState extends State<LoginScreen>
       prefixIcon: Icon(prefixIcon, color: Colors.grey[600], size: 20),
       filled: true,
       fillColor: _card,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: _border),
@@ -368,7 +363,10 @@ class _LoginScreenState extends State<LoginScreen>
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color.fromARGB(255, 3, 197, 87), width: 1.5),
+        borderSide: const BorderSide(
+          color: Color.fromARGB(255, 3, 197, 87),
+          width: 1.5,
+        ),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),

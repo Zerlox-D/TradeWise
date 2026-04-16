@@ -16,19 +16,19 @@ class _FindMentorScreenState extends State<FindMentorScreen>
 
   Map<String, dynamic>? _foundMentor;
   bool _isSearching = false;
-  bool _isSending   = false;
+  bool _isSending = false;
   bool _hasSearched = false;
   bool _requestSent = false;
   AnimationController? _animController;
   Animation<double>? _slideAnim;
 
-  static const _bg     = Color(0xFF0A0E21);
-  static const _card   = Color(0xFF151A30);
+  static const _bg = Color(0xFF0A0E21);
+  static const _card = Color(0xFF151A30);
   static const _border = Color(0xFF1E2440);
-  static const _green  = Color(0xFF00E676);
-  static const _amber  = Color(0xFFFFB74D);
-  static const _red    = Color(0xFFFF5252);
-  static const _blue   = Color(0xFF42A5F5);
+  static const _green = Color(0xFF00E676);
+  static const _amber = Color(0xFFFFB74D);
+  static const _red = Color(0xFFFF5252);
+  static const _blue = Color(0xFF42A5F5);
 
   @override
   void initState() {
@@ -38,7 +38,9 @@ class _FindMentorScreenState extends State<FindMentorScreen>
       duration: const Duration(milliseconds: 600),
     );
     _slideAnim = CurvedAnimation(
-        parent: _animController!, curve: Curves.easeOutCubic);
+      parent: _animController!,
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
@@ -86,8 +88,9 @@ class _FindMentorScreenState extends State<FindMentorScreen>
     HapticFeedback.mediumImpact();
     setState(() => _isSending = true);
 
-    final errorMessage =
-        await ApiService.sendMentorRequest(_foundMentor!['id']);
+    final errorMessage = await ApiService.sendMentorRequest(
+      _foundMentor!['id'],
+    );
 
     setState(() => _isSending = false);
     if (!mounted) return;
@@ -96,30 +99,35 @@ class _FindMentorScreenState extends State<FindMentorScreen>
       setState(() => _requestSent = true);
       HapticFeedback.heavyImpact();
       _showSnackbar(
-          'Request sent! Waiting for approval.',
-          Icons.check_circle_outline_rounded,
-          _green);
+        'Request sent! Waiting for approval.',
+        Icons.check_circle_outline_rounded,
+        _green,
+      );
     } else {
       _showSnackbar(errorMessage, Icons.error_outline_rounded, _red);
     }
   }
 
   void _showSnackbar(String msg, IconData icon, Color col) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Row(children: [
-        Icon(icon, color: col, size: 18),
-        const SizedBox(width: 10),
-        Expanded(
-            child:
-                Text(msg, style: const TextStyle(color: Colors.white))),
-      ]),
-      backgroundColor: _card,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(color: _border),
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: col, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(msg, style: const TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+        backgroundColor: _card,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: _border),
+        ),
       ),
-    ));
+    );
   }
 
   Color _riskColor(String risk) {
@@ -144,10 +152,8 @@ class _FindMentorScreenState extends State<FindMentorScreen>
       body: SafeArea(
         child: Column(
           children: [
-            // ── Fixed top bar ──────────────────────────────────────────────
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -161,26 +167,32 @@ class _FindMentorScreenState extends State<FindMentorScreen>
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: _border),
                       ),
-                      child: const Icon(Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white, size: 16),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white,
+                        size: 16,
+                      ),
                     ),
                   ),
-                  const Row(children: [
-                    Icon(Icons.bolt_rounded, color: _green, size: 18),
-                    SizedBox(width: 6),
-                    Text('TRADEWISE',
+                  const Row(
+                    children: [
+                      Icon(Icons.bolt_rounded, color: _green, size: 18),
+                      SizedBox(width: 6),
+                      Text(
+                        'TRADEWISE',
                         style: TextStyle(
-                            color: _green,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.5)),
-                  ]),
+                          color: _green,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(width: 38), // Placeholder for centering
                 ],
               ),
             ),
-
-            // ── Scrollable body ────────────────────────────────────────────
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
@@ -189,7 +201,6 @@ class _FindMentorScreenState extends State<FindMentorScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Hero section ───────────────────────────────────
                       const SizedBox(height: 12),
                       const Text(
                         'Find Your Mentor',
@@ -205,14 +216,13 @@ class _FindMentorScreenState extends State<FindMentorScreen>
                       Text(
                         'Enter the unique ID your mentor shared with you.',
                         style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[500],
-                            height: 1.5),
+                          fontSize: 14,
+                          color: Colors.grey[500],
+                          height: 1.5,
+                        ),
                       ),
 
                       const SizedBox(height: 36),
-
-                      // ── Big code input ────────────────────────────────
                       Container(
                         decoration: BoxDecoration(
                           color: _card,
@@ -223,12 +233,15 @@ class _FindMentorScreenState extends State<FindMentorScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('MENTOR CODE',
-                                style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 1.2)),
+                            Text(
+                              'MENTOR CODE',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             TextFormField(
                               controller: _codeController,
@@ -240,7 +253,7 @@ class _FindMentorScreenState extends State<FindMentorScreen>
                                 letterSpacing: 6,
                               ),
                               decoration: InputDecoration(
-                                hintText: '——————',
+                                hintText: '------',
                                 hintStyle: TextStyle(
                                   color: _border,
                                   fontSize: 38,
@@ -249,8 +262,9 @@ class _FindMentorScreenState extends State<FindMentorScreen>
                                 ),
                                 border: InputBorder.none,
                                 isDense: true,
-                                contentPadding:
-                                    const EdgeInsets.only(bottom: 12),
+                                contentPadding: const EdgeInsets.only(
+                                  bottom: 12,
+                                ),
                               ),
                               validator: (v) {
                                 if (v == null || v.trim().isEmpty) {
@@ -261,24 +275,22 @@ class _FindMentorScreenState extends State<FindMentorScreen>
                             ),
                             // Bottom row: error space + search trigger
                             Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 // Inline validation hint
                                 const SizedBox(width: 4),
                                 // Search button inside the card
                                 GestureDetector(
-                                  onTap:
-                                      _isSearching ? null : _searchMentor,
+                                  onTap: _isSearching ? null : _searchMentor,
                                   child: Container(
-                                    margin:
-                                        const EdgeInsets.only(bottom: 16),
+                                    margin: const EdgeInsets.only(bottom: 16),
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 20, vertical: 12),
+                                      horizontal: 20,
+                                      vertical: 12,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color:  Color.fromARGB(255, 4, 196, 103),
-                                      borderRadius:
-                                          BorderRadius.circular(12),
+                                      color: Color.fromARGB(255, 4, 196, 103),
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: _isSearching
                                         ? const SizedBox(
@@ -291,15 +303,17 @@ class _FindMentorScreenState extends State<FindMentorScreen>
                                           )
                                         : const Row(
                                             children: [
-                                              Icon(Icons.search_rounded,
-                                                  color: _bg, size: 18),
+                                              Icon(
+                                                Icons.search_rounded,
+                                                color: _bg,
+                                                size: 18,
+                                              ),
                                               SizedBox(width: 6),
                                               Text(
                                                 'Search',
                                                 style: TextStyle(
                                                   color: _bg,
-                                                  fontWeight:
-                                                      FontWeight.w700,
+                                                  fontWeight: FontWeight.w700,
                                                   fontSize: 14,
                                                 ),
                                               ),
@@ -314,14 +328,8 @@ class _FindMentorScreenState extends State<FindMentorScreen>
                       ),
 
                       const SizedBox(height: 36),
-
-                      // ── Not found ─────────────────────────────────────
-                      if (_hasSearched &&
-                          _foundMentor == null &&
-                          !_isSearching)
+                      if (_hasSearched && _foundMentor == null && !_isSearching)
                         _buildNotFound(),
-
-                      // ── Found mentor card ─────────────────────────────
                       if (_foundMentor != null && _slideAnim != null)
                         FadeTransition(
                           opacity: _slideAnim!,
@@ -351,7 +359,7 @@ class _FindMentorScreenState extends State<FindMentorScreen>
       decoration: BoxDecoration(
         color: _card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _red.withOpacity(0.25)),
+        border: Border.all(color: _red.withValues(alpha: 0.25)),
       ),
       child: Column(
         children: [
@@ -362,7 +370,7 @@ class _FindMentorScreenState extends State<FindMentorScreen>
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: _red.withOpacity(0.08),
+                  color: _red.withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -370,17 +378,23 @@ class _FindMentorScreenState extends State<FindMentorScreen>
             ],
           ),
           const SizedBox(height: 18),
-          const Text('No match found',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700)),
+          const Text(
+            'No match found',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 8),
           Text(
             "Double-check the code with your mentor\nand try again.",
             textAlign: TextAlign.center,
             style: TextStyle(
-                color: Colors.grey[500], fontSize: 13, height: 1.6),
+              color: Colors.grey[500],
+              fontSize: 13,
+              height: 1.6,
+            ),
           ),
         ],
       ),
@@ -389,34 +403,36 @@ class _FindMentorScreenState extends State<FindMentorScreen>
 
   Widget _buildMentorCard() {
     final riskProfile = _foundMentor!['risk_profile'] as String? ?? '';
-    final riskCol     = _riskColor(riskProfile);
-    final username    = _foundMentor!['username'] as String? ?? '?';
-    final initial     = username.isNotEmpty ? username[0].toUpperCase() : '?';
+    final riskCol = _riskColor(riskProfile);
+    final username = _foundMentor!['username'] as String? ?? '?';
+    final initial = username.isNotEmpty ? username[0].toUpperCase() : '?';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── "Mentor found" label ───────────────────────────────────────────
         Row(
           children: [
             Container(
               width: 3,
               height: 16,
               decoration: BoxDecoration(
-                  color: _green, borderRadius: BorderRadius.circular(2)),
+                color: _green,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
             const SizedBox(width: 8),
-            Text('Mentor found',
-                style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5)),
+            Text(
+              'Mentor found',
+              style: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 16),
-
-        // ── Profile strip ──────────────────────────────────────────────────
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -427,14 +443,14 @@ class _FindMentorScreenState extends State<FindMentorScreen>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    _green.withOpacity(0.25),
-                    _green.withOpacity(0.08),
+                    _green.withValues(alpha: 0.25),
+                    _green.withValues(alpha: 0.08),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: _green.withOpacity(0.3)),
+                border: Border.all(color: _green.withValues(alpha: 0.3)),
               ),
               child: Center(
                 child: Text(
@@ -464,9 +480,7 @@ class _FindMentorScreenState extends State<FindMentorScreen>
                   const SizedBox(height: 5),
                   Text(
                     'Mentor',
-                    style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 13),
+                    style: TextStyle(color: Colors.grey[500], fontSize: 13),
                   ),
                 ],
               ),
@@ -475,8 +489,6 @@ class _FindMentorScreenState extends State<FindMentorScreen>
         ),
 
         const SizedBox(height: 20),
-
-        // ── Stat tiles row ─────────────────────────────────────────────────
         Row(
           children: [
             Expanded(
@@ -491,7 +503,7 @@ class _FindMentorScreenState extends State<FindMentorScreen>
             Expanded(
               child: _statTile(
                 label: 'Risk Profile',
-                value: riskProfile.isNotEmpty ? riskProfile : '—',
+                value: riskProfile.isNotEmpty ? riskProfile : '-',
                 icon: Icons.shield_outlined,
                 color: riskCol,
               ),
@@ -500,8 +512,6 @@ class _FindMentorScreenState extends State<FindMentorScreen>
         ),
 
         const SizedBox(height: 20),
-
-        // ── Connect button ─────────────────────────────────────────────────
         GestureDetector(
           onTap: (_isSending || _requestSent) ? null : _sendRequest,
           child: AnimatedContainer(
@@ -510,13 +520,13 @@ class _FindMentorScreenState extends State<FindMentorScreen>
             height: 54,
             decoration: BoxDecoration(
               color: _requestSent
-                  ? _green.withOpacity(0.08)
+                  ? _green.withValues(alpha: 0.08)
                   : _isSending
-                      ? _border
-                      : Color.fromARGB(255, 4, 196, 103),
+                  ? _border
+                  : Color.fromARGB(255, 4, 196, 103),
               borderRadius: BorderRadius.circular(16),
               border: _requestSent
-                  ? Border.all(color: _green.withOpacity(0.3))
+                  ? Border.all(color: _green.withValues(alpha: 0.3))
                   : null,
             ),
             child: Center(
@@ -525,39 +535,47 @@ class _FindMentorScreenState extends State<FindMentorScreen>
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                          color: _bg, strokeWidth: 2.5),
+                        color: _bg,
+                        strokeWidth: 2.5,
+                      ),
                     )
                   : _requestSent
-                      ? const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.check_circle_outline_rounded,
-                                color: _green, size: 17),
-                            SizedBox(width: 8),
-                            Text('REQUEST SENT',
-                                style: TextStyle(
-                                  color: _green,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1.2,
-                                )),
-                          ],
-                        )
-                      : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.link_rounded,
-                                color: _bg, size: 18),
-                            SizedBox(width: 8),
-                            Text('CONNECT',
-                                style: TextStyle(
-                                  color: _bg,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.5,
-                                )),
-                          ],
+                  ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline_rounded,
+                          color: _green,
+                          size: 17,
                         ),
+                        SizedBox(width: 8),
+                        Text(
+                          'REQUEST SENT',
+                          style: TextStyle(
+                            color: _green,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ],
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.link_rounded, color: _bg, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'CONNECT',
+                          style: TextStyle(
+                            color: _bg,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ),
         ),
@@ -587,17 +605,20 @@ class _FindMentorScreenState extends State<FindMentorScreen>
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: color, size: 15),
               ),
               const SizedBox(width: 8),
-              Text(label,
-                  style: TextStyle(
-                      color: Colors.grey[500],
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500)),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),

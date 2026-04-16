@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../api_service.dart';
 
@@ -30,7 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      print("Error loading home screen data: $e");
+      debugPrint("Error loading home screen data: $e");
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -66,16 +65,13 @@ class _HomeScreenState extends State<HomeScreen> {
     if (allAssets.length <= 10) {
       displayList = allAssets;
     } else {
-      final top5 = allAssets.take(5).toList(); // Biggest 5 gainers
-      final bottom5 = allAssets
-          .skip(allAssets.length - 5)
-          .toList(); // Biggest 5 losers
+      final top5 = allAssets.take(5).toList();
+      final bottom5 = allAssets.skip(allAssets.length - 5).toList();
       displayList = [...top5, ...bottom5];
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E21),
-      // Use SafeArea since we don't have a standard AppBar on this screen
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF00E676).withOpacity(0.1),
+                          color: const Color(0xFF00E676).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -240,10 +236,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 colors: [
                                   _getSymbolColor(
                                     asset['symbol'],
-                                  ).withOpacity(0.2),
+                                  ).withValues(alpha: 0.2),
                                   _getSymbolColor(
                                     asset['symbol'],
-                                  ).withOpacity(0.05),
+                                  ).withValues(alpha: 0.05),
                                 ],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
@@ -306,7 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: pnlColor.withOpacity(0.1),
+                                  color: pnlColor.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Row(
@@ -368,10 +364,10 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF151A30),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withOpacity(0.15), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.15), width: 1),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.06),
+            color: color.withValues(alpha: 0.06),
             blurRadius: 12,
             spreadRadius: 1,
           ),
@@ -385,16 +381,13 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Align(
               alignment: Alignment.bottomCenter,
               child: SizedBox(
-                height: 100, // Restrict chart to the bottom half of the card
+                height: 100,
                 child: LineChart(
                   LineChartData(
                     minX: 0,
                     maxX: (sparklineRaw.length - 1).toDouble(),
                     minY: minPrice,
-                    maxY:
-                        maxPrice +
-                        (maxPrice - minPrice) *
-                            0.2, // Add buffer so line doesn't hit the text
+                    maxY: maxPrice + (maxPrice - minPrice) * 0.2,
                     gridData: FlGridData(show: false),
                     borderData: FlBorderData(show: false),
                     titlesData: FlTitlesData(show: false), // Hide all axes!
@@ -429,8 +422,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           show: true,
                           gradient: LinearGradient(
                             colors: [
-                              color.withOpacity(0.4),
-                              color.withOpacity(0.0),
+                              color.withValues(alpha: 0.4),
+                              color.withValues(alpha: 0.0),
                             ],
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,

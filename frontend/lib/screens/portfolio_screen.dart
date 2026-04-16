@@ -12,7 +12,7 @@ class PortfolioScreen extends StatefulWidget {
 class _PortfolioScreenState extends State<PortfolioScreen> {
   List<dynamic> _holdings = [];
   List<dynamic> _trades = [];
-  Map<String, double> _livePrices = {};
+  final Map<String, double> _livePrices = {};
   bool _isLoading = true;
 
   String _formatDate(String? isoString) {
@@ -160,7 +160,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF00E676).withOpacity(0.1),
+                color: const Color(0xFF00E676).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -260,10 +260,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               double pnlPercentage = 0.0;
 
               if (isPriceLoaded) {
-                currentValue = quantity * livePrice!;
+                currentValue = quantity * livePrice;
                 pnlAmount = currentValue - bookValue;
-                pnlPercentage =
-                    bookValue > 0 ? (pnlAmount / bookValue) * 100 : 0.0;
+                pnlPercentage = bookValue > 0
+                    ? (pnlAmount / bookValue) * 100
+                    : 0.0;
               }
 
               final isProfit = pnlAmount >= 0;
@@ -291,8 +292,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            symbolColor.withOpacity(0.2),
-                            symbolColor.withOpacity(0.05),
+                            symbolColor.withValues(alpha: 0.2),
+                            symbolColor.withValues(alpha: 0.05),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -373,7 +374,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: pnlColor.withOpacity(0.15),
+                                color: pnlColor.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -471,7 +472,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: status == 'REJECTED'
-                        ? const Color(0xFFFF5252).withOpacity(0.3)
+                        ? const Color(0xFFFF5252).withValues(alpha: 0.3)
                         : const Color(0xFF1E2440),
                   ),
                 ),
@@ -486,8 +487,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                symbolColor.withOpacity(0.2),
-                                symbolColor.withOpacity(0.05),
+                                symbolColor.withValues(alpha: 0.2),
+                                symbolColor.withValues(alpha: 0.05),
                               ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
@@ -561,7 +562,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: statusColor.withOpacity(0.15),
+                                color: statusColor.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -638,7 +639,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       // Fetch live prices after the basic data is loaded
       _fetchLivePricesForHoldings();
     } catch (e) {
-      print("Portfolio Fetch Error: $e");
+      debugPrint("Portfolio Fetch Error: $e");
       if (mounted) setState(() => _isLoading = false);
     }
   }

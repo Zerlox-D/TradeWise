@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../api_service.dart';
 import 'package:fl_chart/fl_chart.dart';
 
@@ -46,7 +46,7 @@ class _TradeScreenState extends State<TradeScreen> {
             profile['has_pending_unlock_request'] == true;
       });
     } catch (e) {
-      // Ignore temporary profile fetch failures here.
+      debugPrint('Trade lock status fetch failed: $e');
     }
   }
 
@@ -196,7 +196,9 @@ class _TradeScreenState extends State<TradeScreen> {
                 onPressed: () {
                   Navigator.pop(context);
                   Future.delayed(const Duration(milliseconds: 100), () {
-                    if (mounted) Navigator.pop(context, true);
+                    if (context.mounted) {
+                      Navigator.pop(context, true);
+                    }
                   });
                 },
                 child: const Text(
@@ -264,7 +266,6 @@ class _TradeScreenState extends State<TradeScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // AI Icon with gradient background
             Container(
               width: 64,
               height: 64,
@@ -277,7 +278,7 @@ class _TradeScreenState extends State<TradeScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF42A5F5).withOpacity(0.3),
+                    color: const Color(0xFF42A5F5).withValues(alpha: 0.3),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -291,7 +292,6 @@ class _TradeScreenState extends State<TradeScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Title
             const Text(
               "AI Risk Analysis",
               style: TextStyle(
@@ -303,7 +303,6 @@ class _TradeScreenState extends State<TradeScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Reasoning container
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -323,7 +322,6 @@ class _TradeScreenState extends State<TradeScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Action button
             SizedBox(
               width: double.infinity,
               height: 48,
@@ -364,7 +362,7 @@ class _TradeScreenState extends State<TradeScreen> {
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (dialogContext, setDialogState) => AlertDialog(
           backgroundColor: const Color(0xFF151A30),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
@@ -398,7 +396,7 @@ class _TradeScreenState extends State<TradeScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text(
                 "Close",
                 style: TextStyle(color: Colors.white70),
@@ -413,12 +411,12 @@ class _TradeScreenState extends State<TradeScreen> {
                   : () async {
                       setDialogState(() => _isRequestingUnlock = true);
                       final error = await ApiService.requestTradeUnlock();
-                      if (!mounted) return;
+                      if (!mounted || !dialogContext.mounted) return;
                       setDialogState(() => _isRequestingUnlock = false);
 
                       if (error == null) {
                         setState(() => _hasPendingUnlockRequest = true);
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(
                           const SnackBar(
                             content: Text(
                               "Unlock request sent to your mentor.",
@@ -427,7 +425,7 @@ class _TradeScreenState extends State<TradeScreen> {
                           ),
                         );
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(
                           SnackBar(
                             content: Text(error),
                             backgroundColor: Colors.redAccent,
@@ -518,7 +516,6 @@ class _TradeScreenState extends State<TradeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ── HEADER ──────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(
@@ -571,15 +568,12 @@ class _TradeScreenState extends State<TradeScreen> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // ── SCROLLABLE BODY ──────────────────────────────────────
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── BUY / SELL TOGGLE ──────────────────────────
                     Container(
                       height: 50,
                       padding: const EdgeInsets.all(4),
@@ -599,8 +593,6 @@ class _TradeScreenState extends State<TradeScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // ── ASSET PICKER ───────────────────────────────
                     _buildSectionHeader("Select Asset"),
                     const SizedBox(height: 12),
 
@@ -620,7 +612,7 @@ class _TradeScreenState extends State<TradeScreen> {
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: _availableAssets.length,
-                          separatorBuilder: (_, __) =>
+                          separatorBuilder: (_, index) =>
                               const SizedBox(width: 10),
                           itemBuilder: (context, index) {
                             final asset = _availableAssets[index];
@@ -639,7 +631,7 @@ class _TradeScreenState extends State<TradeScreen> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? symColor.withOpacity(0.12)
+                                      ? symColor.withValues(alpha: 0.12)
                                       : const Color(0xFF151A30),
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
@@ -656,7 +648,7 @@ class _TradeScreenState extends State<TradeScreen> {
                                       width: 32,
                                       height: 32,
                                       decoration: BoxDecoration(
-                                        color: symColor.withOpacity(0.15),
+                                        color: symColor.withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Center(
@@ -694,8 +686,6 @@ class _TradeScreenState extends State<TradeScreen> {
                         ),
                       ),
                     const SizedBox(height: 16),
-
-                    // ── SELECTED ASSET PRICE ROW ───────────────────
                     if (_selectedSymbol != null) ...[
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -718,7 +708,7 @@ class _TradeScreenState extends State<TradeScreen> {
                               decoration: BoxDecoration(
                                 color: _getSymbolColor(
                                   _selectedSymbol!,
-                                ).withOpacity(0.15),
+                                ).withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Center(
@@ -754,8 +744,6 @@ class _TradeScreenState extends State<TradeScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 6),
-
-                                  // --- THE NEW AI RISK BADGE ---
                                   if (_isLoadingRisk)
                                     const SizedBox(
                                       height: 14,
@@ -781,7 +769,7 @@ class _TradeScreenState extends State<TradeScreen> {
                                               _aiRiskData!['risk_color']
                                                   .replaceFirst('#', '0xFF'),
                                             ),
-                                          ).withOpacity(0.15),
+                                          ).withValues(alpha: 0.15),
                                           borderRadius: BorderRadius.circular(
                                             6,
                                           ),
@@ -791,7 +779,7 @@ class _TradeScreenState extends State<TradeScreen> {
                                                 _aiRiskData!['risk_color']
                                                     .replaceFirst('#', '0xFF'),
                                               ),
-                                            ).withOpacity(0.3),
+                                            ).withValues(alpha: 0.3),
                                           ),
                                         ),
                                         child: Row(
@@ -840,7 +828,7 @@ class _TradeScreenState extends State<TradeScreen> {
                                                         '0xFF',
                                                       ),
                                                 ),
-                                              ).withOpacity(0.8),
+                                              ).withValues(alpha: 0.8),
                                             ),
                                           ],
                                         ),
@@ -878,7 +866,9 @@ class _TradeScreenState extends State<TradeScreen> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: _chartColor.withOpacity(0.1),
+                                        color: _chartColor.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Row(
@@ -911,12 +901,8 @@ class _TradeScreenState extends State<TradeScreen> {
                       ),
                       const SizedBox(height: 16),
                     ],
-
-                    // ── CHART ──────────────────────────────────────
                     _buildChart(),
                     const SizedBox(height: 24),
-
-                    // ── QUANTITY ───────────────────────────────────
                     _buildSectionHeader("Quantity"),
                     const SizedBox(height: 12),
                     Container(
@@ -956,8 +942,6 @@ class _TradeScreenState extends State<TradeScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // ── LINK TO GOAL ───────────────────────────────
                     _buildSectionHeader("Link to Goal"),
                     const SizedBox(height: 12),
                     Container(
@@ -971,7 +955,7 @@ class _TradeScreenState extends State<TradeScreen> {
                       ),
                       child: DropdownButtonFormField<int>(
                         dropdownColor: const Color(0xFF151A30),
-                        value: _selectedGoalId,
+                        initialValue: _selectedGoalId,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 15,
@@ -1009,8 +993,6 @@ class _TradeScreenState extends State<TradeScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // ── JUSTIFICATION ──────────────────────────────
                     _buildSectionHeader("Trade Justification"),
                     const SizedBox(height: 12),
                     Container(
@@ -1041,8 +1023,6 @@ class _TradeScreenState extends State<TradeScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // ── ORDER SUMMARY ──────────────────────────────
                     if (_livePrice != null && qty > 0) ...[
                       Container(
                         padding: const EdgeInsets.all(18),
@@ -1051,7 +1031,7 @@ class _TradeScreenState extends State<TradeScreen> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: getFeePercentage() == 0.03
-                                ? Colors.redAccent.withOpacity(0.35)
+                                ? Colors.redAccent.withValues(alpha: 0.35)
                                 : const Color(0xFF1E2440),
                             width: 1,
                           ),
@@ -1099,10 +1079,14 @@ class _TradeScreenState extends State<TradeScreen> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: Colors.redAccent.withOpacity(0.08),
+                                  color: Colors.redAccent.withValues(
+                                    alpha: 0.08,
+                                  ),
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
-                                    color: Colors.redAccent.withOpacity(0.2),
+                                    color: Colors.redAccent.withValues(
+                                      alpha: 0.2,
+                                    ),
                                     width: 1,
                                   ),
                                 ),
@@ -1132,8 +1116,6 @@ class _TradeScreenState extends State<TradeScreen> {
                       ),
                       const SizedBox(height: 20),
                     ],
-
-                    // ── SUBMIT BUTTON ──────────────────────────────
                     Container(
                       width: double.infinity,
                       height: 56,
@@ -1156,7 +1138,7 @@ class _TradeScreenState extends State<TradeScreen> {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: actionColor.withOpacity(0.28),
+                            color: actionColor.withValues(alpha: 0.28),
                             blurRadius: 16,
                             offset: const Offset(0, 5),
                           ),
@@ -1210,8 +1192,6 @@ class _TradeScreenState extends State<TradeScreen> {
     );
   }
 
-  // ── HELPERS ────────────────────────────────────────────────────────
-
   Widget _buildToggleTab(String label, Color activeColor) {
     final bool isActive = _transactionType == label;
     return Expanded(
@@ -1221,12 +1201,12 @@ class _TradeScreenState extends State<TradeScreen> {
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
             color: isActive
-                ? activeColor.withOpacity(0.15)
+                ? activeColor.withValues(alpha: 0.15)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isActive
-                  ? activeColor.withOpacity(0.5)
+                  ? activeColor.withValues(alpha: 0.5)
                   : Colors.transparent,
               width: 1,
             ),
@@ -1352,7 +1332,7 @@ class _TradeScreenState extends State<TradeScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF151A30),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
       ),
       child: LineChart(
         LineChartData(
@@ -1417,7 +1397,7 @@ class _TradeScreenState extends State<TradeScreen> {
               belowBarData: BarAreaData(
                 show: true,
                 gradient: LinearGradient(
-                  colors: [color.withOpacity(0.25), Colors.transparent],
+                  colors: [color.withValues(alpha: 0.25), Colors.transparent],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),

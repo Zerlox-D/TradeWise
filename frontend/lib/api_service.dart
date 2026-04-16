@@ -1,11 +1,11 @@
-import 'dart:convert';
+﻿import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'constants.dart';
-import 'auth_client.dart'; // 1. Import your new interceptor
+import 'auth_client.dart';
 
 class ApiService {
-  // 2. Create a single static instance of your custom client
   static final _client = AuthClient();
 
   // --- PUBLIC ENDPOINTS (No token needed yet) ---
@@ -28,15 +28,15 @@ class ApiService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(AppConstants.tokenKey, token);
 
-        print("Login successful! Token saved.");
+        debugPrint("Login successful! Token saved.");
         return true;
       } else {
-        print("Login failed. Status Code: ${response.statusCode}");
-        print("Django Error Details: ${response.body}");
+        debugPrint("Login failed. Status Code: ${response.statusCode}");
+        debugPrint("Django Error Details: ${response.body}");
         return false;
       }
     } catch (e) {
-      print("Network or Server Error: $e");
+      debugPrint("Network or Server Error: $e");
       return false;
     }
   }
@@ -65,7 +65,7 @@ class ApiService {
 
       return response.statusCode == 201;
     } catch (e) {
-      print("Register Error: $e");
+      debugPrint("Register Error: $e");
       return false;
     }
   }
@@ -75,7 +75,6 @@ class ApiService {
   static Future<List<dynamic>> getGoals() async {
     final url = Uri.parse("${AppConstants.baseUrl}/goals/");
 
-    // Look how clean this is now!
     final response = await _client.get(url);
 
     if (response.statusCode == 200) {
@@ -98,12 +97,11 @@ class ApiService {
         }
       }
     } catch (e) {
-      print("Search Error: $e");
+      debugPrint("Search Error: $e");
     }
     return null;
   }
 
-  // Notice we changed Future<bool> to Future<String?>
   static Future<String?> sendMentorRequest(int mentorId) async {
     final url = Uri.parse("${AppConstants.baseUrl}/mentor-links/");
 
@@ -114,17 +112,16 @@ class ApiService {
       );
 
       if (response.statusCode == 201) {
-        return null; // Return null on success
+        return null;
       } else {
-        // Decode the 400 Bad Request error from Django
         final errorData = jsonDecode(response.body);
         if (errorData.containsKey('error')) {
-          return errorData['error']; // e.g., "You already have a pending or active mentor connection."
+          return errorData['error'];
         }
         return "Failed to send request. Please try again.";
       }
     } catch (e) {
-      print("Request Error: $e");
+      debugPrint("Request Error: $e");
       return "Network error. Please check your connection.";
     }
   }
@@ -137,12 +134,10 @@ class ApiService {
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
-      // You might want to handle 401 Unauthorized specifically here later
       throw Exception('Failed to load profile data');
     }
   }
 
-  // Fetches all mentor links for the logged-in user
   static Future<List<dynamic>> getMentorLinks() async {
     final url = Uri.parse("${AppConstants.baseUrl}/mentor-links/");
 
@@ -150,17 +145,15 @@ class ApiService {
       final response = await _client.get(url);
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body); // Returns the list of requests
+        return jsonDecode(response.body);
       }
     } catch (e) {
-      print("Error fetching links: $e");
+      debugPrint("Error fetching links: $e");
     }
     return [];
   }
 
-  // MENTOR ACTION: Accept or Reject a request
   static Future<bool> respondToRequest(int linkId, String action) async {
-    // action should be either 'accept' or 'reject'
     final url = Uri.parse(
       "${AppConstants.baseUrl}/mentor-links/$linkId/respond/",
     );
@@ -172,7 +165,7 @@ class ApiService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print("Respond Error: $e");
+      debugPrint("Respond Error: $e");
       return false;
     }
   }
@@ -180,18 +173,12 @@ class ApiService {
   static Future<void> logout() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(
-        'token',
-      ); // Replace 'token' with whatever key you used to save it
-
-      // Optional: If you attached the token to your HTTP client headers, clear them out
-      // _client.options.headers.remove('Authorization');
+      await prefs.remove('token');
     } catch (e) {
-      print("Logout Error: $e");
+      debugPrint("Logout Error: $e");
     }
   }
 
-  // --- ADD THIS TO api_service.dart ---
   static Future<bool> addGoal(
     String title,
     double targetAmount,
@@ -207,17 +194,13 @@ class ApiService {
           'deadline_date': deadline,
         }),
       );
-      // 201 Created is the standard Django success response for POST
       return response.statusCode == 201;
     } catch (e) {
-      print("Add Goal Error: $e");
+      debugPrint("Add Goal Error: $e");
       return false;
     }
   }
 
-  // --- ADD THESE TO api_service.dart ---
-
-  // Update an existing goal
   static Future<bool> updateGoal(
     int id,
     String title,
@@ -227,7 +210,6 @@ class ApiService {
     final url = Uri.parse("${AppConstants.baseUrl}/goals/$id/");
     try {
       final response = await _client.patch(
-        // Use patch or put depending on your Django setup
         url,
         body: jsonEncode({
           'name': title,
@@ -237,25 +219,22 @@ class ApiService {
       );
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      print("Update Goal Error: $e");
+      debugPrint("Update Goal Error: $e");
       return false;
     }
   }
 
-  // Delete a goal
   static Future<bool> deleteGoal(int id) async {
     final url = Uri.parse("${AppConstants.baseUrl}/goals/$id/");
     try {
       final response = await _client.delete(url);
-      return response.statusCode ==
-          204; // 204 No Content is standard for successful deletions
+      return response.statusCode == 204;
     } catch (e) {
-      print("Delete Goal Error: $e");
+      debugPrint("Delete Goal Error: $e");
       return false;
     }
   }
 
-  // 1. Fetch the live price preview
   static Future<double?> getLivePrice(String symbol) async {
     final url = Uri.parse("${AppConstants.baseUrl}/stock-price/$symbol/");
     try {
@@ -264,15 +243,14 @@ class ApiService {
         return jsonDecode(response.body)['price']?.toDouble();
       }
     } catch (e) {
-      print("Price Fetch Error: $e");
+      debugPrint("Price Fetch Error: $e");
     }
     return null;
   }
 
-  // 2. Submit the trade to your TradeRequest API
   static Future<Map<String, dynamic>> submitTrade({
     required String symbol,
-    required String type, // 'BUY' or 'SELL'
+    required String type,
     required int quantity,
     required int goalId,
     required String justification,
@@ -295,7 +273,6 @@ class ApiService {
       if (response.statusCode == 201) {
         return {'success': true, 'data': jsonDecode(response.body)};
       } else {
-        // If your backend blocks it (e.g. Insufficient Funds), we return the exact error
         final error = jsonDecode(response.body)['error'] ?? 'Trade failed';
         return {'success': false, 'message': error};
       }
@@ -312,12 +289,11 @@ class ApiService {
         return jsonDecode(response.body);
       }
     } catch (e) {
-      print("Fetch Holdings Error: $e");
+      debugPrint("Fetch Holdings Error: $e");
     }
     return [];
   }
 
-  // Fetch 30-day historical data for the chart
   static Future<Map<String, dynamic>?> getStockHistory(String symbol) async {
     final url = Uri.parse("${AppConstants.baseUrl}/stock-history/$symbol/");
     try {
@@ -326,12 +302,11 @@ class ApiService {
         return jsonDecode(response.body);
       }
     } catch (e) {
-      print("History Fetch Error: $e");
+      debugPrint("History Fetch Error: $e");
     }
     return null;
   }
 
-  // 1. Fetch trades (Django automatically filters this so Mentors see their students' trades)
   static Future<List<dynamic>> getTrades() async {
     final url = Uri.parse("${AppConstants.baseUrl}/trades/");
     try {
@@ -340,7 +315,7 @@ class ApiService {
         return jsonDecode(response.body);
       }
     } catch (e) {
-      print("Fetch Trades Error: $e");
+      debugPrint("Fetch Trades Error: $e");
     }
     return [];
   }
@@ -353,7 +328,7 @@ class ApiService {
         return jsonDecode(response.body);
       }
     } catch (e) {
-      print("Fetch Unlock Requests Error: $e");
+      debugPrint("Fetch Unlock Requests Error: $e");
     }
     return [];
   }
@@ -369,7 +344,7 @@ class ApiService {
       final body = jsonDecode(response.body);
       return body['error'] ?? 'Unable to submit unlock request.';
     } catch (e) {
-      print("Request Unlock Error: $e");
+      debugPrint("Request Unlock Error: $e");
       return 'Network error. Please try again.';
     }
   }
@@ -389,12 +364,11 @@ class ApiService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print("Respond Unlock Request Error: $e");
+      debugPrint("Respond Unlock Request Error: $e");
       return false;
     }
   }
 
-  // 2. Submit the mentor's decision on a high-risk trade
   static Future<bool> respondToTrade(
     int tradeId,
     String action, {
@@ -404,19 +378,15 @@ class ApiService {
     try {
       final response = await _client.post(
         url,
-        body: jsonEncode({
-          'action': action, // 'approve' or 'reject'
-          'comment': comment,
-        }),
+        body: jsonEncode({'action': action, 'comment': comment}),
       );
       return response.statusCode == 200;
     } catch (e) {
-      print("Trade Approval Error: $e");
+      debugPrint("Trade Approval Error: $e");
       return false;
     }
   }
 
-  // Fetch a student's portfolio (Mentors only)
   static Future<Map<String, dynamic>?> getStudentPortfolio(
     int studentId,
   ) async {
@@ -429,12 +399,11 @@ class ApiService {
         return jsonDecode(response.body);
       }
     } catch (e) {
-      print("Fetch Student Portfolio Error: $e");
+      debugPrint("Fetch Student Portfolio Error: $e");
     }
     return null;
   }
 
-  // Fetch the 24H Market Overview data
   static Future<Map<String, dynamic>?> getMarketOverview() async {
     final url = Uri.parse("${AppConstants.baseUrl}/market-overview/");
     try {
@@ -443,12 +412,11 @@ class ApiService {
         return jsonDecode(response.body);
       }
     } catch (e) {
-      print("Market Overview Fetch Error: $e");
+      debugPrint("Market Overview Fetch Error: $e");
     }
     return null;
   }
 
-  // Fetch the lightweight list of assets for the Trade Screen dropdown
   static Future<List<dynamic>> getAssets() async {
     final url = Uri.parse("${AppConstants.baseUrl}/assets/");
     try {
@@ -457,12 +425,11 @@ class ApiService {
         return jsonDecode(response.body);
       }
     } catch (e) {
-      print("Assets Fetch Error: $e");
+      debugPrint("Assets Fetch Error: $e");
     }
     return [];
   }
 
-  // Fetch dynamic AI Risk Assessment from Gemini
   static Future<Map<String, dynamic>?> getAIRiskAssessment(
     String symbol,
   ) async {
@@ -476,10 +443,10 @@ class ApiService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        print("AI Risk API Error: ${response.body}");
+        debugPrint("AI Risk API Error: ${response.body}");
       }
     } catch (e) {
-      print("Network Error: $e");
+      debugPrint("Network Error: $e");
     }
     return null;
   }
@@ -496,21 +463,19 @@ class ApiService {
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization':
-              'Token $token', // Use 'Bearer $token' if you are using JWT!
+          'Authorization': 'Token $token',
         },
       );
 
       if (response.statusCode == 201) {
-        // Successfully drafted! Returns the quiz_id and the 5 questions.
         return jsonDecode(response.body);
       } else {
-        print("Failed to draft AI Quiz. Status: ${response.statusCode}");
-        print("Error Details: ${response.body}");
+        debugPrint("Failed to draft AI Quiz. Status: ${response.statusCode}");
+        debugPrint("Error Details: ${response.body}");
         return null;
       }
     } catch (e) {
-      print("Network Error Drafting Quiz: $e");
+      debugPrint("Network Error Drafting Quiz: $e");
       return null;
     }
   }
@@ -530,22 +495,19 @@ class ApiService {
           'Content-Type': 'application/json',
           'Authorization': 'Token $token',
         },
-        body: jsonEncode({
-          'questions':
-              questions, // Send the edited array straight back to Django
-        }),
+        body: jsonEncode({'questions': questions}),
       );
 
       if (response.statusCode == 200) {
-        print("Quiz published successfully!");
+        debugPrint("Quiz published successfully!");
         return true;
       } else {
-        print("Failed to publish Quiz. Status: ${response.statusCode}");
-        print("Error Details: ${response.body}");
+        debugPrint("Failed to publish Quiz. Status: ${response.statusCode}");
+        debugPrint("Error Details: ${response.body}");
         return false;
       }
     } catch (e) {
-      print("Network Error Publishing Quiz: $e");
+      debugPrint("Network Error Publishing Quiz: $e");
       return false;
     }
   }
@@ -571,7 +533,7 @@ class ApiService {
       }
       return null;
     } catch (e) {
-      print("Network Error fetching quiz: $e");
+      debugPrint("Network Error fetching quiz: $e");
       return null;
     }
   }
@@ -595,16 +557,14 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(
-          response.body,
-        ); // Returns the PASSED/FAILED status and results array!
+        return jsonDecode(response.body);
       } else {
-        print("Failed to submit quiz. Status: ${response.statusCode}");
-        print("Error Details: ${response.body}");
+        debugPrint("Failed to submit quiz. Status: ${response.statusCode}");
+        debugPrint("Error Details: ${response.body}");
         return null;
       }
     } catch (e) {
-      print("Network Error submitting quiz: $e");
+      debugPrint("Network Error submitting quiz: $e");
       return null;
     }
   }

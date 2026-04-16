@@ -30,7 +30,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       }
     } catch (e) {
-      print("Profile Load Error: $e");
+      debugPrint("Profile Load Error: $e");
       if (mounted) setState(() => _isLoading = false);
     }
   }

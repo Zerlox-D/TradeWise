@@ -38,7 +38,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ['username', 'date_of_birth', 'email', 'password', 'role']
 
     def create(self, validated_data):
-        # password hashing
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
@@ -57,15 +56,12 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         if role == 'MENTOR' and dob:
             today = datetime.date.today()
-            # Calculate Age
             age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
             
             if age < 21:
                 raise serializers.ValidationError("You must be at least 21 years old to register as a Mentor.")
         
         return data
-    
-# 1. The "Business Card" for Search Results
 class MentorSerializer(serializers.ModelSerializer):
     mentor_code = serializers.SerializerMethodField()
     class Meta:
@@ -73,8 +69,6 @@ class MentorSerializer(serializers.ModelSerializer):
         fields = ['id', 'mentor_code', 'username', 'email', 'discipline_score', 'risk_profile']
     def get_mentor_code(self, obj):
         return 130200+obj.id
-
-# 2. The "Contract" for the Link
 class MentorLinkSerializer(serializers.ModelSerializer):
     student_name = serializers.ReadOnlyField(source='student.username')
     mentor_name = serializers.ReadOnlyField(source='mentor.username')
@@ -82,7 +76,7 @@ class MentorLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = MentorLink
         fields = ['id', 'student', 'mentor', 'student_name', 'mentor_name', 'is_active', 'status', 'created_at']
-        read_only_fields = ['student', 'is_active', 'status'] # Security: Student can't fake these
+        read_only_fields = ['student', 'is_active', 'status']
 
 class HoldingSerializer(serializers.ModelSerializer):
     class Meta:

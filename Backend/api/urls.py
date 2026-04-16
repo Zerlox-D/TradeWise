@@ -6,7 +6,7 @@ from . import views
 
 router = DefaultRouter()
 
-router.register(r'users', UserViewSet) # No basename needed for UserViewSet because queryset is defined
+router.register(r'users', UserViewSet)
 router.register(r'goals', GoalViewSet, basename='goal')
 router.register(r'trades', TradeRequestViewSet, basename='traderequest')
 router.register(r'mentor-links', MentorLinkViewSet, basename='mentor-links')

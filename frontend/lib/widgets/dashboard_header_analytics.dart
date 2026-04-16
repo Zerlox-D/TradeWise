@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import '../api_service.dart';
 
 class DashboardHeaderAnalytics {
-  // ── Brand colours ──────────────────────────────────────────────────────────
-  static const _bg     = Color(0xFF0A0E21);
-  static const _card   = Color(0xFF151A30);
+  static const _bg = Color(0xFF0A0E21);
+  static const _card = Color(0xFF151A30);
   static const _border = Color(0xFF1E2440);
-  static const _green  = Color(0xFF00E676);
-  static const _amber  = Color(0xFFFFB74D);
-  static const _red    = Color(0xFFFF5252);
-  static const _blue   = Color(0xFF42A5F5);
-
-  // ── Risk colour helper ─────────────────────────────────────────────────────
+  static const _green = Color(0xFF00E676);
+  static const _amber = Color(0xFFFFB74D);
+  static const _red = Color(0xFFFF5252);
+  static const _blue = Color(0xFF42A5F5);
   static Color _riskColor(String risk) {
     switch (risk) {
       case 'Low':
@@ -33,17 +30,15 @@ class DashboardHeaderAnalytics {
     return _red;
   }
 
-  // ── Header ─────────────────────────────────────────────────────────────────
   static Widget buildHeader(Map<String, dynamic>? userProfile) {
-    final balance      = userProfile!['wallet_balance'] ?? "0.00";
-    final riskProfile  = userProfile['risk_profile'] ?? "Moderate";
-    final riskCol      = _riskColor(riskProfile);
-    final username     = userProfile['username'] ?? '';
+    final balance = userProfile!['wallet_balance'] ?? "0.00";
+    final riskProfile = userProfile['risk_profile'] ?? "Moderate";
+    final riskCol = _riskColor(riskProfile);
+    final username = userProfile['username'] ?? '';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Brand bar ──────────────────────────────────────────────────────
         Row(
           children: [
             const Icon(Icons.bolt_rounded, color: _green, size: 18),
@@ -61,8 +56,6 @@ class DashboardHeaderAnalytics {
           ],
         ),
         const SizedBox(height: 20),
-
-        // ── Greeting ───────────────────────────────────────────────────────
         Text(
           'Welcome back,',
           style: TextStyle(fontSize: 14, color: Colors.grey[500]),
@@ -78,8 +71,6 @@ class DashboardHeaderAnalytics {
           ),
         ),
         const SizedBox(height: 20),
-
-        // ── Wallet + Risk + Discipline hero card ───────────────────────────
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(22),
@@ -100,10 +91,7 @@ class DashboardHeaderAnalytics {
                 children: [
                   Text(
                     'Total Balance',
-                    style: TextStyle(
-                      color: Colors.grey[500],
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: Colors.grey[500], fontSize: 13),
                   ),
                 ],
               ),
@@ -121,7 +109,7 @@ class DashboardHeaderAnalytics {
               // Divider
               Container(height: 1, color: _border),
               const SizedBox(height: 16),
-              // Risk Profile + Discipline Score — prominent side-by-side
+              // Risk Profile + Discipline Score
               Row(
                 children: [
                   // Risk Profile block
@@ -131,16 +119,23 @@ class DashboardHeaderAnalytics {
                       children: [
                         Text(
                           'Risk Profile',
-                          style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 11,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
-                            color: riskCol.withOpacity(0.12),
+                            color: riskCol.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: riskCol.withOpacity(0.35)),
+                            border: Border.all(
+                              color: riskCol.withValues(alpha: 0.35),
+                            ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -201,7 +196,6 @@ class DashboardHeaderAnalytics {
     );
   }
 
-  // ── Analytics section (discipline + goals) ─────────────────────────────────
   static Widget buildAnalyticsSection(
     Map<String, dynamic>? userProfile,
     List<dynamic> goals,
@@ -212,89 +206,92 @@ class DashboardHeaderAnalytics {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Discipline score — full-width prominent card ─────────────────
-        Builder(builder: (context) {
-          return Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            decoration: BoxDecoration(
-              color: _card,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _border),
-            ),
-            child: Row(
-              children: [
-                // Big ring
-                _DisciplineRing(
-                  score: disciplineScore,
-                  radius: 40,
-                  strokeWidth: 7,
-                  fontSize: 22,
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Text(
-                            'Discipline Score',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const Spacer(),
-                          GestureDetector(
-                            onTap: () => _showInfoSheet(context),
-                            child: Container(
-                              width: 26,
-                              height: 26,
-                              decoration: BoxDecoration(
-                                color: _blue.withOpacity(0.1),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                    color: _blue.withOpacity(0.3)),
-                              ),
-                              child: const Icon(Icons.info_outline_rounded,
-                                  color: _blue, size: 15),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _disciplineLabel(disciplineScore),
-                        style: TextStyle(
-                          color: _getScoreColor(disciplineScore),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: disciplineScore / 100,
-                          backgroundColor: const Color(0xFF1E2440),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            _getScoreColor(disciplineScore),
-                          ),
-                          minHeight: 6,
-                        ),
-                      ),
-                    ],
+        Builder(
+          builder: (context) {
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              decoration: BoxDecoration(
+                color: _card,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: _border),
+              ),
+              child: Row(
+                children: [
+                  // Big ring
+                  _DisciplineRing(
+                    score: disciplineScore,
+                    radius: 40,
+                    strokeWidth: 7,
+                    fontSize: 22,
                   ),
-                ),
-              ],
-            ),
-          );
-        }),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Text(
+                              'Discipline Score',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const Spacer(),
+                            GestureDetector(
+                              onTap: () => _showInfoSheet(context),
+                              child: Container(
+                                width: 26,
+                                height: 26,
+                                decoration: BoxDecoration(
+                                  color: _blue.withValues(alpha: 0.1),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: _blue.withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.info_outline_rounded,
+                                  color: _blue,
+                                  size: 15,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _disciplineLabel(disciplineScore),
+                          style: TextStyle(
+                            color: _getScoreColor(disciplineScore),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: disciplineScore / 100,
+                            backgroundColor: const Color(0xFF1E2440),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              _getScoreColor(disciplineScore),
+                            ),
+                            minHeight: 6,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
         const SizedBox(height: 16),
-
-        // ── Goals — full-width, tappable ─────────────────────────────────
         InkWell(
           onTap: onShowGoals,
           borderRadius: BorderRadius.circular(16),
@@ -316,11 +313,14 @@ class DashboardHeaderAnalytics {
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: _green.withOpacity(0.1),
+                          color: _green.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.flag_rounded,
-                            color: _green, size: 22),
+                        child: const Icon(
+                          Icons.flag_rounded,
+                          color: _green,
+                          size: 22,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -330,15 +330,18 @@ class DashboardHeaderAnalytics {
                             const Text(
                               'Active Goals',
                               style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600),
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             const SizedBox(height: 3),
                             Text(
                               'Tap to set your first goal',
                               style: TextStyle(
-                                  color: Colors.grey[500], fontSize: 12),
+                                color: Colors.grey[500],
+                                fontSize: 12,
+                              ),
                             ),
                           ],
                         ),
@@ -349,17 +352,20 @@ class DashboardHeaderAnalytics {
                 }
 
                 // Goal with progress
-                final firstGoal  = goals.first;
-                final currentAmt = double.tryParse(
-                        firstGoal['current_amount']?.toString() ?? '0') ??
+                final firstGoal = goals.first;
+                final currentAmt =
+                    double.tryParse(
+                      firstGoal['current_amount']?.toString() ?? '0',
+                    ) ??
                     0.0;
-                final targetAmt = double.tryParse(
-                        firstGoal['target_amount']?.toString() ?? '1') ??
+                final targetAmt =
+                    double.tryParse(
+                      firstGoal['target_amount']?.toString() ?? '1',
+                    ) ??
                     1.0;
                 final safeTarget = targetAmt > 0 ? targetAmt : 1.0;
                 final progress = (currentAmt / safeTarget).clamp(0.0, 1.0);
-                final progressColor =
-                    progress >= 1.0 ? _green : _blue;
+                final progressColor = progress >= 1.0 ? _green : _blue;
                 final extraCount = goals.length - 1;
 
                 return Column(
@@ -371,11 +377,14 @@ class DashboardHeaderAnalytics {
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: progressColor.withOpacity(0.1),
+                            color: progressColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(Icons.flag_rounded,
-                              color: progressColor, size: 22),
+                          child: Icon(
+                            Icons.flag_rounded,
+                            color: progressColor,
+                            size: 22,
+                          ),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -387,7 +396,9 @@ class DashboardHeaderAnalytics {
                                   Text(
                                     'Active Goals',
                                     style: TextStyle(
-                                        color: Colors.grey[500], fontSize: 11),
+                                      color: Colors.grey[500],
+                                      fontSize: 11,
+                                    ),
                                   ),
                                   const Spacer(),
                                   Text(
@@ -424,8 +435,9 @@ class DashboardHeaderAnalytics {
                       child: LinearProgressIndicator(
                         value: progress,
                         backgroundColor: _border,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(progressColor),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          progressColor,
+                        ),
                         minHeight: 8,
                       ),
                     ),
@@ -444,23 +456,19 @@ class DashboardHeaderAnalytics {
                         Text(
                           'of ₹${targetAmt.toStringAsFixed(0)}',
                           style: TextStyle(
-                              color: Colors.grey[500], fontSize: 12),
+                            color: Colors.grey[500],
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
                     if (extraCount > 0) ...[
                       const SizedBox(height: 10),
-                      Container(
-                        height: 1,
-                        color: _border,
-                      ),
+                      Container(height: 1, color: _border),
                       const SizedBox(height: 10),
                       Text(
                         '+$extraCount more goal${extraCount > 1 ? 's' : ''} · tap to view all',
-                        style: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: Colors.grey[500], fontSize: 12),
                       ),
                     ],
                   ],
@@ -585,7 +593,7 @@ class DashboardHeaderAnalytics {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: color, size: 18),
@@ -621,7 +629,6 @@ class DashboardHeaderAnalytics {
     return 'Needs attention';
   }
 
-  // ── Goals bottom sheet ─────────────────────────────────────────────────────
   static void showGoalsBottomSheet(
     BuildContext context,
     List<dynamic> goals,
@@ -686,11 +693,15 @@ class DashboardHeaderAnalytics {
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 7),
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
                       decoration: BoxDecoration(
-                        color: _green.withOpacity(0.12),
+                        color: _green.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _green.withOpacity(0.3)),
+                        border: Border.all(
+                          color: _green.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: const Row(
                         children: [
@@ -699,9 +710,10 @@ class DashboardHeaderAnalytics {
                           Text(
                             'Add Goal',
                             style: TextStyle(
-                                color: _green,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600),
+                              color: _green,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
@@ -727,17 +739,22 @@ class DashboardHeaderAnalytics {
                   itemCount: goals.length,
                   itemBuilder: (context, index) {
                     final goal = goals[index];
-                    final currentAmt = double.tryParse(
-                            goal['current_amount']?.toString() ?? '0') ??
+                    final currentAmt =
+                        double.tryParse(
+                          goal['current_amount']?.toString() ?? '0',
+                        ) ??
                         0.0;
-                    final targetAmt = double.tryParse(
-                            goal['target_amount']?.toString() ?? '1') ??
+                    final targetAmt =
+                        double.tryParse(
+                          goal['target_amount']?.toString() ?? '1',
+                        ) ??
                         1.0;
                     final progress =
-                        (currentAmt / (targetAmt > 0 ? targetAmt : 1))
-                            .clamp(0.0, 1.0);
-                    final progressColor =
-                        progress >= 1.0 ? _green : _blue;
+                        (currentAmt / (targetAmt > 0 ? targetAmt : 1)).clamp(
+                          0.0,
+                          1.0,
+                        );
+                    final progressColor = progress >= 1.0 ? _green : _blue;
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -766,8 +783,11 @@ class DashboardHeaderAnalytics {
                               ),
                               PopupMenuButton<String>(
                                 color: _card,
-                                icon: Icon(Icons.more_vert,
-                                    color: Colors.grey[500], size: 18),
+                                icon: Icon(
+                                  Icons.more_vert,
+                                  color: Colors.grey[500],
+                                  size: 18,
+                                ),
                                 onSelected: (value) {
                                   Navigator.pop(context);
                                   if (value == 'edit') {
@@ -779,14 +799,17 @@ class DashboardHeaderAnalytics {
                                 itemBuilder: (context) => [
                                   const PopupMenuItem(
                                     value: 'edit',
-                                    child: Text('Edit',
-                                        style:
-                                            TextStyle(color: Colors.white)),
+                                    child: Text(
+                                      'Edit',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
                                   ),
                                   const PopupMenuItem(
                                     value: 'delete',
-                                    child: Text('Delete',
-                                        style: TextStyle(color: _red)),
+                                    child: Text(
+                                      'Delete',
+                                      style: TextStyle(color: _red),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -799,7 +822,9 @@ class DashboardHeaderAnalytics {
                               Text(
                                 'Due: ${goal['deadline_date'] ?? 'N/A'}',
                                 style: TextStyle(
-                                    color: Colors.grey[500], fontSize: 11),
+                                  color: Colors.grey[500],
+                                  fontSize: 11,
+                                ),
                               ),
                               Text(
                                 '₹${targetAmt.toStringAsFixed(0)}',
@@ -818,7 +843,8 @@ class DashboardHeaderAnalytics {
                               value: progress,
                               backgroundColor: _border,
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                  progressColor),
+                                progressColor,
+                              ),
                               minHeight: 6,
                             ),
                           ),
@@ -834,9 +860,8 @@ class DashboardHeaderAnalytics {
     );
   }
 
-  // ── Add goal dialog ────────────────────────────────────────────────────────
   static void showAddGoalDialog(BuildContext context, VoidCallback onRefresh) {
-    final titleController  = TextEditingController();
+    final titleController = TextEditingController();
     final amountController = TextEditingController();
     DateTime? selectedDate;
     bool isSaving = false;
@@ -852,7 +877,11 @@ class DashboardHeaderAnalytics {
         builder: (context, setS) {
           return Padding(
             padding: EdgeInsets.fromLTRB(
-                24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+              24,
+              24,
+              24,
+              MediaQuery.of(context).viewInsets.bottom + 32,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -863,8 +892,9 @@ class DashboardHeaderAnalytics {
                     width: 36,
                     height: 4,
                     decoration: BoxDecoration(
-                        color: _border,
-                        borderRadius: BorderRadius.circular(2)),
+                      color: _border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -876,29 +906,38 @@ class DashboardHeaderAnalytics {
                       width: 3,
                       height: 18,
                       decoration: BoxDecoration(
-                          color: _green,
-                          borderRadius: BorderRadius.circular(2)),
+                        color: _green,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                     const SizedBox(width: 10),
                     const Text(
                       'Add New Goal',
                       style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700),
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
 
                 // Goal title field
-                _sheetField(titleController, 'Goal Title',
-                    hint: 'e.g. Emergency Fund'),
+                _sheetField(
+                  titleController,
+                  'Goal Title',
+                  hint: 'e.g. Emergency Fund',
+                ),
                 const SizedBox(height: 16),
 
                 // Amount field
-                _sheetField(amountController, 'Target Amount',
-                    hint: '₹ 0', numeric: true),
+                _sheetField(
+                  amountController,
+                  'Target Amount',
+                  hint: '₹ 0',
+                  numeric: true,
+                ),
                 const SizedBox(height: 16),
 
                 // Date picker
@@ -921,7 +960,8 @@ class DashboardHeaderAnalytics {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                    'Please fill all fields and select a date.'),
+                                  'Please fill all fields and select a date.',
+                                ),
                                 backgroundColor: _amber,
                               ),
                             );
@@ -933,6 +973,7 @@ class DashboardHeaderAnalytics {
                             double.tryParse(amountController.text) ?? 0.0,
                             _fmt(selectedDate!),
                           );
+                          if (!context.mounted) return;
                           if (success) {
                             Navigator.pop(context);
                             onRefresh();
@@ -950,12 +991,15 @@ class DashboardHeaderAnalytics {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     decoration: BoxDecoration(
-                      color: isSaving ? _border : _green.withOpacity(0.15),
+                      color: isSaving
+                          ? _border
+                          : _green.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                          color: isSaving
-                              ? Colors.transparent
-                              : _green.withOpacity(0.4)),
+                        color: isSaving
+                            ? Colors.transparent
+                            : _green.withValues(alpha: 0.4),
+                      ),
                     ),
                     child: Center(
                       child: isSaving
@@ -963,14 +1007,17 @@ class DashboardHeaderAnalytics {
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(
-                                  color: _green, strokeWidth: 2),
+                                color: _green,
+                                strokeWidth: 2,
+                              ),
                             )
                           : const Text(
                               'Save Goal',
                               style: TextStyle(
-                                  color: _green,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700),
+                                color: _green,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                     ),
                   ),
@@ -983,18 +1030,18 @@ class DashboardHeaderAnalytics {
     );
   }
 
-  // ── Edit goal dialog ───────────────────────────────────────────────────────
   static void showEditGoalDialog(
     BuildContext context,
     Map goal,
     VoidCallback onRefresh,
   ) {
-    final titleController =
-        TextEditingController(text: goal['title'] ?? goal['name']);
-    final amountController =
-        TextEditingController(text: goal['target_amount'].toString());
-    DateTime? selectedDate =
-        DateTime.tryParse(goal['deadline_date'] ?? '');
+    final titleController = TextEditingController(
+      text: goal['title'] ?? goal['name'],
+    );
+    final amountController = TextEditingController(
+      text: goal['target_amount'].toString(),
+    );
+    DateTime? selectedDate = DateTime.tryParse(goal['deadline_date'] ?? '');
     bool isSaving = false;
 
     showModalBottomSheet(
@@ -1008,7 +1055,11 @@ class DashboardHeaderAnalytics {
         builder: (context, setS) {
           return Padding(
             padding: EdgeInsets.fromLTRB(
-                24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+              24,
+              24,
+              24,
+              MediaQuery.of(context).viewInsets.bottom + 32,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1018,8 +1069,9 @@ class DashboardHeaderAnalytics {
                     width: 36,
                     height: 4,
                     decoration: BoxDecoration(
-                        color: _border,
-                        borderRadius: BorderRadius.circular(2)),
+                      color: _border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -1029,24 +1081,30 @@ class DashboardHeaderAnalytics {
                       width: 3,
                       height: 18,
                       decoration: BoxDecoration(
-                          color: _blue,
-                          borderRadius: BorderRadius.circular(2)),
+                        color: _blue,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                     const SizedBox(width: 10),
                     const Text(
                       'Edit Goal',
                       style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700),
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
                 _sheetField(titleController, 'Goal Title'),
                 const SizedBox(height: 16),
-                _sheetField(amountController, 'Target Amount',
-                    hint: '₹ 0', numeric: true),
+                _sheetField(
+                  amountController,
+                  'Target Amount',
+                  hint: '₹ 0',
+                  numeric: true,
+                ),
                 const SizedBox(height: 16),
                 _sheetDatePicker(
                   context,
@@ -1060,7 +1118,9 @@ class DashboardHeaderAnalytics {
                       : () async {
                           if (titleController.text.isEmpty ||
                               amountController.text.isEmpty ||
-                              selectedDate == null) return;
+                              selectedDate == null) {
+                            return;
+                          }
                           setS(() => isSaving = true);
                           bool success = await ApiService.updateGoal(
                             goal['id'],
@@ -1068,6 +1128,7 @@ class DashboardHeaderAnalytics {
                             double.tryParse(amountController.text) ?? 0.0,
                             _fmt(selectedDate!),
                           );
+                          if (!context.mounted) return;
                           if (success) {
                             Navigator.pop(context);
                             onRefresh();
@@ -1085,12 +1146,13 @@ class DashboardHeaderAnalytics {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     decoration: BoxDecoration(
-                      color: isSaving ? _border : _blue.withOpacity(0.15),
+                      color: isSaving ? _border : _blue.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                          color: isSaving
-                              ? Colors.transparent
-                              : _blue.withOpacity(0.4)),
+                        color: isSaving
+                            ? Colors.transparent
+                            : _blue.withValues(alpha: 0.4),
+                      ),
                     ),
                     child: Center(
                       child: isSaving
@@ -1098,14 +1160,17 @@ class DashboardHeaderAnalytics {
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(
-                                  color: _blue, strokeWidth: 2),
+                                color: _blue,
+                                strokeWidth: 2,
+                              ),
                             )
                           : const Text(
                               'Update Goal',
                               style: TextStyle(
-                                  color: _blue,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700),
+                                color: _blue,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                     ),
                   ),
@@ -1118,7 +1183,6 @@ class DashboardHeaderAnalytics {
     );
   }
 
-  // ── Delete goal dialog ─────────────────────────────────────────────────────
   static void confirmDeleteGoal(
     BuildContext context,
     Map goal,
@@ -1142,8 +1206,9 @@ class DashboardHeaderAnalytics {
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                      color: _border,
-                      borderRadius: BorderRadius.circular(2)),
+                    color: _border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -1153,16 +1218,18 @@ class DashboardHeaderAnalytics {
                     width: 3,
                     height: 18,
                     decoration: BoxDecoration(
-                        color: _red,
-                        borderRadius: BorderRadius.circular(2)),
+                      color: _red,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   const Text(
                     'Delete Goal?',
                     style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700),
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -1177,7 +1244,11 @@ class DashboardHeaderAnalytics {
                 ),
                 child: Text(
                   "Are you sure you want to delete '${goal['title'] ?? goal['name']}'? This cannot be undone.",
-                  style: TextStyle(color: Colors.grey[400], fontSize: 14, height: 1.5),
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -1194,11 +1265,14 @@ class DashboardHeaderAnalytics {
                           border: Border.all(color: _border),
                         ),
                         child: const Center(
-                          child: Text('Cancel',
-                              style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600)),
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -1208,8 +1282,8 @@ class DashboardHeaderAnalytics {
                     child: GestureDetector(
                       onTap: () async {
                         Navigator.pop(context);
-                        bool success =
-                            await ApiService.deleteGoal(goal['id']);
+                        bool success = await ApiService.deleteGoal(goal['id']);
+                        if (!context.mounted) return;
                         if (success) {
                           onRefresh();
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -1230,17 +1304,21 @@ class DashboardHeaderAnalytics {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         decoration: BoxDecoration(
-                          color: _red.withOpacity(0.1),
+                          color: _red.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(14),
-                          border:
-                              Border.all(color: _red.withOpacity(0.3)),
+                          border: Border.all(
+                            color: _red.withValues(alpha: 0.3),
+                          ),
                         ),
                         child: const Center(
-                          child: Text('Delete',
-                              style: TextStyle(
-                                  color: _red,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700)),
+                          child: Text(
+                            'Delete',
+                            style: TextStyle(
+                              color: _red,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -1254,7 +1332,6 @@ class DashboardHeaderAnalytics {
     );
   }
 
-  // ── Private helpers ────────────────────────────────────────────────────────
   static String _fmt(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -1267,11 +1344,14 @@ class DashboardHeaderAnalytics {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 12,
-                fontWeight: FontWeight.w500)),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.grey[500],
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
@@ -1282,8 +1362,10 @@ class DashboardHeaderAnalytics {
             hintStyle: TextStyle(color: Colors.grey[700]),
             filled: true,
             fillColor: _card,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: _border),
@@ -1311,17 +1393,21 @@ class DashboardHeaderAnalytics {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Deadline',
-            style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 12,
-                fontWeight: FontWeight.w500)),
+        Text(
+          'Deadline',
+          style: TextStyle(
+            color: Colors.grey[500],
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         const SizedBox(height: 8),
         GestureDetector(
           onTap: () async {
             final DateTime? picked = await showDatePicker(
               context: context,
-              initialDate: selectedDate ??
+              initialDate:
+                  selectedDate ??
                   DateTime.now().add(
                     initialOffset == Duration.zero
                         ? const Duration(days: 1)
@@ -1345,21 +1431,23 @@ class DashboardHeaderAnalytics {
           },
           child: Container(
             width: double.infinity,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: _card,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                  color: selectedDate != null
-                      ? _blue.withOpacity(0.5)
-                      : _border),
+                color: selectedDate != null
+                    ? _blue.withValues(alpha: 0.5)
+                    : _border,
+              ),
             ),
             child: Row(
               children: [
-                Icon(Icons.calendar_today_rounded,
-                    color: selectedDate != null ? _blue : Colors.grey[600],
-                    size: 16),
+                Icon(
+                  Icons.calendar_today_rounded,
+                  color: selectedDate != null ? _blue : Colors.grey[600],
+                  size: 16,
+                ),
                 const SizedBox(width: 10),
                 Text(
                   selectedDate == null
@@ -1381,7 +1469,6 @@ class DashboardHeaderAnalytics {
   }
 }
 
-// ── Discipline ring widget ─────────────────────────────────────────────────
 class _DisciplineRing extends StatelessWidget {
   final int score;
   final double radius;

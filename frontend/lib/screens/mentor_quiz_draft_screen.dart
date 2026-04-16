@@ -19,22 +19,20 @@ class MentorQuizDraftScreen extends StatefulWidget {
 
 class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
     with TickerProviderStateMixin {
-  bool _isLoading    = true;
+  bool _isLoading = true;
   bool _isPublishing = false;
   int? _quizId;
   List<dynamic> _questions = [];
 
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnim;
-
-  // ── Palette ────────────────────────────────────────────────────────────────
-  static const _bg     = Color(0xFF0A0E21);
-  static const _card   = Color(0xFF151A30);
+  static const _bg = Color(0xFF0A0E21);
+  static const _card = Color(0xFF151A30);
   static const _border = Color(0xFF1E2440);
-  static const _green  = Color(0xFF00E676);
-  static const _amber  = Color(0xFFFFB74D);
-  static const _red    = Color(0xFFFF5252);
-  static const _blue   = Color(0xFF42A5F5);
+  static const _green = Color(0xFF00E676);
+  static const _amber = Color(0xFFFFB74D);
+  static const _red = Color(0xFFFF5252);
+  static const _blue = Color(0xFF42A5F5);
 
   // Option letter colours — A/B/C/D each get their own tint
   static const _optionColors = [_blue, _green, _amber, _red];
@@ -64,7 +62,7 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
     if (mounted) {
       if (response != null && response['quiz_id'] != null) {
         setState(() {
-          _quizId    = response['quiz_id'];
+          _quizId = response['quiz_id'];
           _questions = response['questions'];
           _isLoading = false;
         });
@@ -72,12 +70,16 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Row(children: [
-              Icon(Icons.error_outline_rounded, color: _red, size: 18),
-              SizedBox(width: 10),
-              Text('Failed to generate AI draft. Please try again.',
-                  style: TextStyle(color: Colors.white)),
-            ]),
+            content: const Row(
+              children: [
+                Icon(Icons.error_outline_rounded, color: _red, size: 18),
+                SizedBox(width: 10),
+                Text(
+                  'Failed to generate AI draft. Please try again.',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
             backgroundColor: _card,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -97,12 +99,16 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Row(children: [
-            Icon(Icons.check_circle_outline_rounded, color: _green, size: 18),
-            SizedBox(width: 10),
-            Text('Quiz published successfully!',
-                style: TextStyle(color: Colors.white)),
-          ]),
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle_outline_rounded, color: _green, size: 18),
+              SizedBox(width: 10),
+              Text(
+                'Quiz published successfully!',
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
           backgroundColor: _card,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -117,12 +123,16 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Row(children: [
-              Icon(Icons.error_outline_rounded, color: _red, size: 18),
-              SizedBox(width: 10),
-              Text('Failed to publish quiz.',
-                  style: TextStyle(color: Colors.white)),
-            ]),
+            content: const Row(
+              children: [
+                Icon(Icons.error_outline_rounded, color: _red, size: 18),
+                SizedBox(width: 10),
+                Text(
+                  'Failed to publish quiz.',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
             backgroundColor: _card,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -153,7 +163,6 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
     );
   }
 
-  // ── Top bar ────────────────────────────────────────────────────────────────
   Widget _buildTopBar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
@@ -172,19 +181,25 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: _border),
                   ),
-                  child: const Icon(Icons.arrow_back_ios_new_rounded,
-                      color: Colors.white, size: 16),
+                  child: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                 ),
               ),
               const Spacer(),
               const Icon(Icons.bolt_rounded, color: _green, size: 18),
               const SizedBox(width: 6),
-              const Text('TRADEWISE',
-                  style: TextStyle(
-                      color: _green,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.5)),
+              const Text(
+                'TRADEWISE',
+                style: TextStyle(
+                  color: _green,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.5,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -197,29 +212,30 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: _amber.withOpacity(0.12),
+                  color: _amber.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _amber.withOpacity(0.3)),
+                  border: Border.all(color: _amber.withValues(alpha: 0.3)),
                 ),
-                child: const Icon(Icons.quiz_rounded,
-                    color: _amber, size: 22),
+                child: const Icon(Icons.quiz_rounded, color: _amber, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('AI Quiz Draft',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.3)),
+                    const Text(
+                      'AI Quiz Draft',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       'For ${widget.studentName}',
-                      style: TextStyle(
-                          color: Colors.grey[500], fontSize: 13),
+                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
                     ),
                   ],
                 ),
@@ -227,19 +243,21 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
               if (!_isLoading)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 5),
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
-                    color: _amber.withOpacity(0.1),
+                    color: _amber.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border:
-                        Border.all(color: _amber.withOpacity(0.3)),
+                    border: Border.all(color: _amber.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     '${_questions.length} Qs',
                     style: const TextStyle(
-                        color: _amber,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700),
+                      color: _amber,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
             ],
@@ -251,13 +269,11 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
     );
   }
 
-  // ── Loading state ──────────────────────────────────────────────────────────
   Widget _buildLoadingState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Pulsing AI brain icon
           AnimatedBuilder(
             animation: _pulseAnim,
             builder: (context, child) {
@@ -265,31 +281,39 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: _blue.withOpacity(0.08 * _pulseAnim.value),
+                  color: _blue.withValues(alpha: 0.08 * _pulseAnim.value),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: _blue.withOpacity(0.4 * _pulseAnim.value),
+                    color: _blue.withValues(alpha: 0.4 * _pulseAnim.value),
                     width: 1.5,
                   ),
                 ),
-                child: Icon(Icons.auto_awesome_rounded,
-                    color: _blue.withOpacity(0.6 + 0.4 * _pulseAnim.value),
-                    size: 36),
+                child: Icon(
+                  Icons.auto_awesome_rounded,
+                  color: _blue.withValues(alpha: 0.6 + 0.4 * _pulseAnim.value),
+                  size: 36,
+                ),
               );
             },
           ),
           const SizedBox(height: 28),
-          const Text('Gemini AI is on it…',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600)),
+          const Text(
+            'Gemini AI is on it…',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 10),
           Text(
             'Analysing ${widget.studentName}\'s recent\ntrades to build a personalised quiz.',
             textAlign: TextAlign.center,
-            style:
-                TextStyle(color: Colors.grey[500], fontSize: 13, height: 1.6),
+            style: TextStyle(
+              color: Colors.grey[500],
+              fontSize: 13,
+              height: 1.6,
+            ),
           ),
           const SizedBox(height: 32),
           // Animated dots
@@ -300,14 +324,16 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: List.generate(3, (i) {
                   final offset = (i / 3);
-                  final v = ((_pulseController.value - offset) % 1.0)
-                      .clamp(0.0, 1.0);
+                  final v = ((_pulseController.value - offset) % 1.0).clamp(
+                    0.0,
+                    1.0,
+                  );
                   return Container(
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     width: 7,
                     height: 7,
                     decoration: BoxDecoration(
-                      color: _blue.withOpacity(0.3 + 0.7 * v),
+                      color: _blue.withValues(alpha: 0.3 + 0.7 * v),
                       shape: BoxShape.circle,
                     ),
                   );
@@ -320,7 +346,6 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
     );
   }
 
-  // ── Quiz list ──────────────────────────────────────────────────────────────
   Widget _buildQuizList() {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
@@ -331,7 +356,6 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
     );
   }
 
-  // ── Question card ──────────────────────────────────────────────────────────
   Widget _buildQuestionCard(int index) {
     final q = _questions[index];
 
@@ -345,16 +369,14 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Card header band ─────────────────────────────────────────────
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: BoxDecoration(
               color: _bg,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(18)),
-              border: const Border(
-                  bottom: BorderSide(color: _border)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(18),
+              ),
+              border: const Border(bottom: BorderSide(color: _border)),
             ),
             child: Row(
               children: [
@@ -363,55 +385,65 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
                   width: 30,
                   height: 30,
                   decoration: BoxDecoration(
-                    color: _amber.withOpacity(0.15),
+                    color: _amber.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _amber.withOpacity(0.3)),
+                    border: Border.all(color: _amber.withValues(alpha: 0.3)),
                   ),
                   child: Center(
                     child: Text(
                       '${index + 1}',
                       style: const TextStyle(
-                          color: _amber,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800),
+                        color: _amber,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 10),
-                const Text('Question',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600)),
+                const Text(
+                  'Question',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const Spacer(),
                 // Correct answer selector inline in header
                 Row(
                   children: [
-                    Text('Answer:',
-                        style: TextStyle(
-                            color: Colors.grey[500], fontSize: 12)),
+                    Text(
+                      'Answer:',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    ),
                     const SizedBox(width: 8),
                     Container(
                       decoration: BoxDecoration(
-                        color: _green.withOpacity(0.1),
+                        color: _green.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border:
-                            Border.all(color: _green.withOpacity(0.3)),
+                        border: Border.all(
+                          color: _green.withValues(alpha: 0.3),
+                        ),
                       ),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 2),
+                        horizontal: 10,
+                        vertical: 2,
+                      ),
                       child: DropdownButton<String>(
                         value: q['correct_answer'],
                         dropdownColor: _card,
                         underline: const SizedBox.shrink(),
                         isDense: true,
                         style: const TextStyle(
-                            color: _green,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13),
+                          color: _green,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
                         items: ['A', 'B', 'C', 'D']
-                            .map((v) => DropdownMenuItem(
-                                value: v, child: Text(v)))
+                            .map(
+                              (v) => DropdownMenuItem(value: v, child: Text(v)),
+                            )
                             .toList(),
                         onChanged: (val) =>
                             setState(() => q['correct_answer'] = val),
@@ -422,8 +454,6 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
               ],
             ),
           ),
-
-          // ── Body ─────────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -457,13 +487,13 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
                           height: 30,
                           decoration: BoxDecoration(
                             color: isCorrect
-                                ? col.withOpacity(0.2)
-                                : col.withOpacity(0.08),
+                                ? col.withValues(alpha: 0.2)
+                                : col.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: isCorrect
-                                  ? col.withOpacity(0.6)
-                                  : col.withOpacity(0.25),
+                                  ? col.withValues(alpha: 0.6)
+                                  : col.withValues(alpha: 0.25),
                             ),
                           ),
                           child: Center(
@@ -472,7 +502,7 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
                               style: TextStyle(
                                 color: isCorrect
                                     ? col
-                                    : col.withOpacity(0.6),
+                                    : col.withValues(alpha: 0.6),
                                 fontSize: 12,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -505,14 +535,20 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
                 // Explanation
                 Row(
                   children: [
-                    const Icon(Icons.lightbulb_outline_rounded,
-                        color: _amber, size: 15),
+                    const Icon(
+                      Icons.lightbulb_outline_rounded,
+                      color: _amber,
+                      size: 15,
+                    ),
                     const SizedBox(width: 6),
-                    Text('Explanation',
-                        style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500)),
+                    Text(
+                      'Explanation',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -530,7 +566,6 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
     );
   }
 
-  // ── Publish bar ────────────────────────────────────────────────────────────
   Widget _buildPublishBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 14, 24, 24),
@@ -556,14 +591,19 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
-                            color: _bg, strokeWidth: 2.5),
+                          color: _bg,
+                          strokeWidth: 2.5,
+                        ),
                       ),
                       SizedBox(width: 12),
-                      Text('Publishing…',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600)),
+                      Text(
+                        'Publishing…',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   )
                 : const Row(
@@ -571,13 +611,15 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
                     children: [
                       Icon(Icons.send_rounded, color: _bg, size: 18),
                       SizedBox(width: 10),
-                      Text('PUBLISH QUIZ',
-                          style: TextStyle(
-                            color: _bg,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.2,
-                          )),
+                      Text(
+                        'PUBLISH QUIZ',
+                        style: TextStyle(
+                          color: _bg,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
                     ],
                   ),
           ),
@@ -586,7 +628,6 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
     );
   }
 
-  // ── Editable field ─────────────────────────────────────────────────────────
   Widget _editableField({
     required String value,
     required Function(String) onChanged,
@@ -599,13 +640,16 @@ class _MentorQuizDraftScreenState extends State<MentorQuizDraftScreen>
       onChanged: onChanged,
       maxLines: maxLines,
       style: TextStyle(
-          color: Colors.white,
-          fontSize: compact ? 13 : 14,
-          height: 1.4),
+        color: Colors.white,
+        fontSize: compact ? 13 : 14,
+        height: 1.4,
+      ),
       decoration: InputDecoration(
         hintText: placeholder,
-        hintStyle:
-            TextStyle(color: Colors.grey[700], fontSize: compact ? 13 : 14),
+        hintStyle: TextStyle(
+          color: Colors.grey[700],
+          fontSize: compact ? 13 : 14,
+        ),
         filled: true,
         fillColor: _bg,
         contentPadding: EdgeInsets.symmetric(
