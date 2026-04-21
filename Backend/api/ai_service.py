@@ -35,11 +35,11 @@ def evaluate_student_behavior(student_id):
         Apply these strict rules to determine the adjustment:
         - Reward (+2 to +5) for making LOW risk trades or holding safely.
         - Penalize slightly (-2 to -5) for rapid/frequent MODERATE risk trades.
-        - Penalize heavily (-10 to -15) for executing HIGH risk trades.
+        - Penalize heavily (-8 to -12) for executing HIGH risk trades.
         
         CRITICAL RULES:
         - The absolute maximum reward is +5.
-        - The absolute maximum penalty is -15.
+        - The absolute maximum penalty is -12.
         - Do not calculate the final score. ONLY return the adjustment integer.
         
         Return ONLY a JSON object perfectly matching this structure:
@@ -63,7 +63,7 @@ def evaluate_student_behavior(student_id):
 
         adjustment = ai_data.get('score_adjustment', 0)
 
-        adjustment = max(-15, min(5, adjustment))
+        adjustment = max(-12, min(5, adjustment))
 
         raw_new_score = previous_score + adjustment
 

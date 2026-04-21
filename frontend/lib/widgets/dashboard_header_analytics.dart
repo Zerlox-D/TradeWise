@@ -1289,7 +1289,7 @@ class DashboardHeaderAnalytics {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Goal deleted.'),
-                              backgroundColor: _green,
+                              backgroundColor: Color.fromARGB(255, 0, 198, 102),
                             ),
                           );
                         } else {

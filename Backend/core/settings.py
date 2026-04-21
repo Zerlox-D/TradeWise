@@ -73,7 +73,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 DATABASES = {
     'default': dj_database_url.config(
-        default='postgres://postgres:postgres@dev@localhost:5432/tradewise_db',
+        default='postgres://postgres:postgres%40dev@localhost:5432/tradewise_db',
         conn_max_age=600,
         conn_health_checks=True,
     )

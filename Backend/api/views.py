@@ -1,4 +1,3 @@
-import logging
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -11,7 +10,6 @@ from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
-
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Q
@@ -19,8 +17,6 @@ from .ai_service import evaluate_student_behavior, draft_quiz_with_ai
 from .ai_risk_engine import analyze_stock_risk
 from .models import Asset, User, Goal, TradeRequest, MentorLink, Holding, TradeUnlockRequest, Quiz, QuizQuestion
 from .serializers import HoldingSerializer, UserSerializer, GoalSerializer, TradeRequestSerializer, RegisterSerializer, MentorSerializer, MentorLinkSerializer, TradeUnlockRequestSerializer
-
-logger = logging.getLogger(__name__)
 
 
 def calculate_brokerage_fee(total_value, discipline_score):
@@ -115,7 +111,7 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
         total_buy_cost = total_cost + fee_amount
         total_sell_profit = total_cost - fee_amount
         if transaction_type == 'BUY':
-            if user.wallet_balance < total_cost:
+            if user.wallet_balance < total_buy_cost:
                 return Response({'error': 'Insufficient Funds'}, status=status.HTTP_400_BAD_REQUEST)
         risk_level = request.data.get('risk_level', 'MODERATE')
         has_active_mentor = MentorLink.objects.filter(student=user, status='ACCEPTED').exists()
@@ -148,7 +144,7 @@ class TradeRequestViewSet(viewsets.ModelViewSet):
         )
         if trade_status == 'EXECUTED':
             if transaction_type == 'BUY':
-                user.wallet_balance -= total_cost
+                user.wallet_balance -= total_buy_cost
                 holding, created = Holding.objects.get_or_create(
                     user=user, 
                     symbol=symbol,

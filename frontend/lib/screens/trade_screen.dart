@@ -134,8 +134,12 @@ class _TradeScreenState extends State<TradeScreen> {
       return;
     }
 
-    if (_selectedSymbol == null || _selectedGoalId == null) {
-      _showError("Please select an asset and a linked goal.");
+    if (_selectedSymbol == null) {
+      _showError("Please select an asset.");
+      return;
+    }
+    if (_selectedGoalId == null) {
+      _showError("Please select a linked goal.");
       return;
     }
     if (_aiRiskData == null) {
@@ -955,12 +959,13 @@ class _TradeScreenState extends State<TradeScreen> {
                       ),
                       child: DropdownButtonFormField<int>(
                         dropdownColor: const Color(0xFF151A30),
-                        initialValue: _selectedGoalId,
+                        initialValue: widget.userGoals.isNotEmpty ? _selectedGoalId : null,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 15,
                         ),
                         iconEnabledColor: const Color(0xFF4C5078),
+                        iconDisabledColor: const Color(0xFF151A30), 
                         decoration: const InputDecoration(
                           contentPadding: EdgeInsets.symmetric(
                             horizontal: 16,
@@ -970,29 +975,30 @@ class _TradeScreenState extends State<TradeScreen> {
                           prefixIcon: Icon(
                             Icons.flag_outlined,
                             color: Color(0xFF4C5078),
-                            size: 20,
+                            size: 20, 
                           ),
                         ),
                         items: widget.userGoals.map((goal) {
                           return DropdownMenuItem<int>(
                             value: goal['id'],
                             child: Text(
-                              goal['title'] ?? goal['name'] ?? "Goal",
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (val) =>
-                            setState(() => _selectedGoalId = val),
-                        hint: Text(
-                          "Select a Goal",
-                          style: TextStyle(
-                            color: Colors.grey[700],
-                            fontSize: 14,
+                            goal['title'] ?? goal['name'] ?? "Goal",
                           ),
+                        );
+                      }).toList(),
+                      onChanged: widget.userGoals.isNotEmpty 
+                      ? (val) => setState(() => _selectedGoalId = val)
+                      : null, 
+                      hint: Text(
+                        widget.userGoals.isNotEmpty ? "Select a Goal" : "Head to your profile to set your goals!",
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: 14,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                  ),
+                  const SizedBox(height: 24),
                     _buildSectionHeader("Trade Justification"),
                     const SizedBox(height: 12),
                     Container(

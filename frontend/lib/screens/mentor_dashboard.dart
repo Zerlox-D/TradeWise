@@ -131,6 +131,12 @@ class _MentorDashboardState extends State<MentorDashboard> {
     String action,
     String comment,
   ) async {
+    final successMessage = action == 'approve'
+        ? 'Trade approved successfully.'
+        : action == 'reject'
+        ? 'Trade rejected successfully.'
+        : 'Trade processed successfully.';
+
     bool success = await ApiService.respondToTrade(
       tradeId,
       action,
@@ -141,9 +147,8 @@ class _MentorDashboardState extends State<MentorDashboard> {
       _loadDashboardData();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Trade ${action}ed successfully."),
-          backgroundColor: _green,
-        ),
+          content: Text(successMessage),
+          backgroundColor: const Color.fromARGB(255, 0, 198, 102)),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -183,7 +188,7 @@ class _MentorDashboardState extends State<MentorDashboard> {
             children: [
               Text(
                 action == 'approve'
-                    ? "Add an optional note for the student:"
+                    ? "Add an optional advisory note to the student for future trades:"
                     : "Please provide a reason for rejecting this trade:",
                 style: const TextStyle(color: Colors.white, fontSize: 14),
               ),
@@ -798,7 +803,9 @@ class _MentorDashboardState extends State<MentorDashboard> {
               final bool hasActiveQuiz = _activeQuizzes.any(
                 (q) =>
                     q['student_name'] == req['student_name'] &&
-                    q['status'] == 'PUBLISHED',
+                    (q['status'] == 'PUBLISHED' ||
+                        q['status'] == 'FAILED' ||
+                        q['status'] == 'PASSED'),
               );
 
               return Container(

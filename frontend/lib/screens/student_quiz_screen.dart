@@ -336,7 +336,7 @@ class _StudentQuizScreenState extends State<StudentQuizScreen>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Answer carefully - this affects your trading access.',
+                      'Get all questions right to pass. You can retake if you fail.',
                       style: TextStyle(color: Colors.grey[500], fontSize: 12),
                     ),
                   ],
